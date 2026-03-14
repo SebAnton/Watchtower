@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watchtower</title>
+    <!-- Modern typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Phosphor Icons for premium minimalist icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Background Elements for Glassmorphism -->
+    <div class="bg-shape shape-1"></div>
+    <div class="bg-shape shape-2"></div>
+    <div class="bg-shape shape-3"></div>
+
+    <div class="app-container">
+        <!-- Sidebar Navigation & Config -->
+        <aside class="sidebar glass-panel">
+            <div class="sidebar-header">
+                <i class="ph ph-cloud-warning text-gradient"></i>
+                <h2>Salesforce Configuration</h2>
+            </div>
+            
+            <div class="sidebar-content">
+                <div class="config-section">
+                    <h3>Production Orgs</h3>
+                    <p class="subtitle">Add a Production Org to track it and its related sandboxes.</p>
+                    
+                    <div id="instance-list" class="instance-list">
+                        <!-- Populated via JS with new hierarchy -->
+                    </div>
+
+                    <form id="add-instance-form" class="add-instance-form">
+                        <div class="input-group" style="flex-direction: column;">
+                            <input type="text" id="new-instance-input" placeholder="e.g. NA211 (Server ID)" required autocomplete="off">
+                            <div style="display:flex; gap:0.5rem; width:100%;">
+                                <input type="text" id="new-instance-alias" placeholder="Alias (Optional)" autocomplete="off" style="flex-grow:1;">
+                                <button type="submit" class="btn-primary" aria-label="Add Org">
+                                    <i class="ph ph-plus"></i> Add
+                                </button>
+                            </div>
+                        </div>
+                        <span id="input-error" class="error-msg hidden">Please enter a valid instance.</span>
+                    </form>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="sidebar-actions" style="display: flex; gap: 0.5rem; justify-content: center; margin-bottom: 1rem;">
+                    <button id="btn-export" class="btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; flex-grow: 1;" title="Export Config">
+                        <i class="ph ph-download-simple"></i> Export
+                    </button>
+                    <button id="btn-import" class="btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; flex-grow: 1;" title="Import Config">
+                        <i class="ph ph-upload-simple"></i> Import
+                    </button>
+                    <input type="file" id="import-file" accept=".json" class="hidden">
+                </div>
+                <p>Status data provided by <br><a href="https://status.salesforce.com" target="_blank">Salesforce Trust <i class="ph ph-arrow-up-right"></i></a></p>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="top-nav glass-panel">
+                <div class="nav-left" style="display: flex; align-items: center; gap: 1rem;">
+                    <button id="sidebar-toggle" class="btn-icon" title="Toggle Sidebar">
+                        <i class="ph ph-list"></i>
+                    </button>
+                    <div>
+                        <h1>Watchtower</h1>
+                        <span class="last-updated" id="last-updated">Last checked: Just now</span>
+                    </div>
+                </div>
+                <div class="nav-right">
+                    <button id="refresh-btn" class="btn-icon" title="Refresh Now">
+                        <i class="ph ph-arrows-clockwise"></i>
+                    </button>
+                </div>
+            </header>
+
+            <div class="dashboard-scroll-area">
+                <div class="dashboard-grid" id="status-grid">
+                    <!-- Status Cards Rendered Here via JS -->
+                    <!-- Example Skeleton Card while Loading -->
+                    <div class="status-card glass-panel skeleton">
+                        <div class="card-header">
+                            <div class="skeleton-text short"></div>
+                            <div class="skeleton-circle"></div>
+                        </div>
+                        <div class="skeleton-text long"></div>
+                        <div class="skeleton-text medium"></div>
+                    </div>
+                    <div class="status-card glass-panel skeleton">
+                        <div class="card-header">
+                            <div class="skeleton-text short"></div>
+                            <div class="skeleton-circle"></div>
+                        </div>
+                        <div class="skeleton-text long"></div>
+                        <div class="skeleton-text medium"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Custom Confirm Modal -->
+    <div id="confirm-modal" class="modal-overlay hidden">
+        <div class="modal-content glass-panel">
+            <h3 style="margin-top:0; display:flex; align-items:center; gap:0.5rem;"><i class="ph ph-warning-circle" style="color:var(--status-warning)"></i> Confirm Action</h3>
+            <p id="confirm-message" style="color:var(--text-secondary); margin: 1rem 0 1.5rem 0; font-size: 0.95rem;"></p>
+            <div style="display:flex; justify-content:flex-end; gap:0.8rem;">
+                <button id="confirm-cancel" class="btn-secondary">Cancel</button>
+                <button id="confirm-ok" class="btn-primary" style="background:var(--status-critical); border-color:var(--status-critical);">Delete</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>
