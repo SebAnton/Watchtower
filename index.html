@@ -48,6 +48,27 @@
                         <span id="input-error" class="error-msg hidden">Please enter a valid instance.</span>
                     </form>
                 </div>
+                
+                <hr style="border: none; border-top: 1px solid var(--border-glass); margin: 1.5rem 0;">
+
+                <div class="config-section">
+                    <h3>External Services</h3>
+                    <p class="subtitle">Track global status for 3rd party tools.</p>
+                    
+                    <div id="external-list" class="instance-list">
+                        <!-- Populated via JS -->
+                    </div>
+
+                    <form id="add-external-form" class="add-instance-form" style="display:flex; gap:0.5rem; width:100%;">
+                        <select id="new-external-select" style="flex-grow:1; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-glass); border-radius: 0.75rem; padding: 0.75rem 1rem; color: var(--text-primary); font-family: var(--font-family); font-size: 0.95rem; outline: none;">
+                            <option value="" disabled selected>Select a Service</option>
+                            <!-- Options populated via JS -->
+                        </select>
+                        <button type="button" id="btn-add-external" class="btn-primary" aria-label="Add Service">
+                            <i class="ph ph-plus"></i> Add
+                        </button>
+                    </form>
+                </div>
             </div>
 
             <div class="sidebar-footer">

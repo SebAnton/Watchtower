@@ -10,6 +10,17 @@ const DEFAULT_CONFIG = [
 // Array of objects: [{ prod: string, prodName: string, sandboxes: [{ id: string, name: string }], shownServices: string[] }]
 let trackedConfig = [];
 
+// Storage for External Services (Jira, Bitbucket, Azure DevOps)
+const EXTERNAL_STORAGE_KEY = 'sf_status_external_instances';
+// Form: [{ id: 'jira', name: 'Jira Software', type: 'atlassian', url: 'https://jira-software.status.atlassian.com/api/v2/summary.json' }]
+let trackedExternalConfig = [];
+
+const SUPPORTED_EXTERNAL_SERVICES = [
+    { id: 'jira', name: 'Jira Software', type: 'atlassian', api: 'https://jira-software.status.atlassian.com/api/v2/summary.json' },
+    { id: 'bitbucket', name: 'Atlassian Bitbucket', type: 'atlassian', api: 'https://bitbucket.status.atlassian.com/api/v2/summary.json' },
+    { id: 'azure', name: 'Azure DevOps', type: 'azure', api: 'https://status.dev.azure.com/_apis/status/health?api-version=6.0-preview.1' }
+];
+
 // ==========================================================================
 // DOM Elements
 // ==========================================================================
@@ -21,6 +32,9 @@ const els = {
     newInput: document.getElementById('new-instance-input'),
     newAlias: document.getElementById('new-instance-alias'),
     inputError: document.getElementById('input-error'),
+    externalList: document.getElementById('external-list'),
+    externalSelect: document.getElementById('new-external-select'),
+    addExternalBtn: document.getElementById('btn-add-external'),
     statusGrid: document.getElementById('status-grid'),
     refreshBtn: document.getElementById('refresh-btn'),
     lastUpdated: document.getElementById('last-updated'),
@@ -42,6 +56,8 @@ const els = {
 // ==========================================================================
 function init() {
     loadInstances();
+    loadExternalInstances();
+    populateExternalSelect();
     setupEventListeners();
     fetchAllStatuses();
     
@@ -134,6 +150,35 @@ function saveInstances() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(trackedConfig));
 }
 
+function loadExternalInstances() {
+    const saved = localStorage.getItem(EXTERNAL_STORAGE_KEY);
+    if (saved) {
+        try {
+            trackedExternalConfig = JSON.parse(saved);
+        } catch (e) {
+            console.error('Failed to parse external instances:', e);
+            trackedExternalConfig = [];
+        }
+    } else {
+        trackedExternalConfig = [];
+    }
+    renderExternalList();
+}
+
+function saveExternalInstances() {
+    localStorage.setItem(EXTERNAL_STORAGE_KEY, JSON.stringify(trackedExternalConfig));
+}
+
+function populateExternalSelect() {
+    els.externalSelect.innerHTML = '<option value="" disabled selected>Select a Service</option>';
+    SUPPORTED_EXTERNAL_SERVICES.forEach(svc => {
+        const option = document.createElement('option');
+        option.value = svc.id;
+        option.textContent = svc.name;
+        els.externalSelect.appendChild(option);
+    });
+}
+
 // ==========================================================================
 // Event Listeners
 // ==========================================================================
@@ -143,6 +188,7 @@ function setupEventListeners() {
     });
 
     els.addForm.addEventListener('submit', handleAddProdInstance);
+    els.addExternalBtn.addEventListener('click', handleAddExternalService);
     els.refreshBtn.addEventListener('click', handleManualRefresh);
     
     // Config Tools
@@ -211,6 +257,38 @@ function removeProdOrg(prodName) {
         trackedConfig = trackedConfig.filter(g => g.prod !== prodName);
         saveInstances();
         renderSidebarList();
+        fetchAllStatuses();
+    });
+}
+
+function handleAddExternalService(e) {
+    e.preventDefault();
+    const svcId = els.externalSelect.value;
+    if (!svcId) return;
+
+    if (trackedExternalConfig.some(s => s.id === svcId)) {
+        alert('External Service already tracked.');
+        return;
+    }
+
+    const svcDef = SUPPORTED_EXTERNAL_SERVICES.find(s => s.id === svcId);
+    if (svcDef) {
+        trackedExternalConfig.push(svcDef);
+        saveExternalInstances();
+        renderExternalList();
+        els.externalSelect.value = '';
+        fetchAllStatuses();
+    }
+}
+
+function removeExternalService(svcId) {
+    const svc = trackedExternalConfig.find(s => s.id === svcId);
+    if (!svc) return;
+
+    showConfirmModal(`Remove <strong>${svc.name}</strong> from tracking?`, () => {
+        trackedExternalConfig = trackedExternalConfig.filter(s => s.id !== svcId);
+        saveExternalInstances();
+        renderExternalList();
         fetchAllStatuses();
     });
 }
@@ -491,14 +569,60 @@ function renderSidebarList() {
     });
 }
 
+function renderExternalList() {
+    els.externalList.innerHTML = '';
+    
+    if (trackedExternalConfig.length === 0) {
+        els.externalList.innerHTML = `<div style="text-align:center; color: var(--text-muted); font-size: 0.85rem; padding: 0.5rem 0 1rem 0;">No external services tracked.</div>`;
+        return;
+    }
+
+    const list = document.createElement('ul');
+    list.className = 'instance-list';
+    list.style.marginBottom = '1rem';
+
+    trackedExternalConfig.forEach(svc => {
+        const item = document.createElement('li');
+        item.className = 'instance-item';
+        
+        const titleContainer = document.createElement('div');
+        titleContainer.className = 'instance-name';
+        
+        let iconHtml = '<i class="ph ph-globe"></i>';
+        if (svc.type === 'atlassian') iconHtml = '<i class="ph ph-kanban"></i>';
+        else if (svc.type === 'azure') iconHtml = '<i class="ph ph-microsoft-logo"></i>';
+
+        titleContainer.innerHTML = `${iconHtml} <span class="name-text">${svc.name}</span>`;
+        
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'btn-remove';
+        removeBtn.title = 'Remove External Service';
+        removeBtn.innerHTML = '<i class="ph ph-trash"></i>';
+        removeBtn.addEventListener('click', () => removeExternalService(svc.id));
+
+        item.appendChild(titleContainer);
+        item.appendChild(removeBtn);
+        list.appendChild(item);
+    });
+
+    els.externalList.appendChild(list);
+}
+
 // ==========================================================================
 // API & Main Grid Rendering (with Deduplication)
 // ==========================================================================
 let fetchCache = {};
 
 async function fetchAllStatuses() {
-    if (trackedConfig.length === 0) {
-        renderEmptyState();
+    if (trackedConfig.length === 0 && trackedExternalConfig.length === 0) {
+        // Assume renderEmptyState exists or manually clear grid if needed
+        els.statusGrid.innerHTML = '';
+        els.statusGrid.classList.remove('dashboard-grid');
+        els.statusGrid.innerHTML = `<div style="text-align:center; padding: 4rem; color: var(--text-muted);">
+            <i class="ph ph-binoculars" style="font-size: 4rem; color: rgba(255,255,255,0.1); margin-bottom: 1rem;"></i>
+            <h3>No Services Tracked</h3>
+            <p style="margin-top: 0.5rem; max-width: 400px; margin-left: auto; margin-right: auto;">Add a Salesforce Production org, or an external service from the sidebar configuration to begin tracking status.</p>
+        </div>`;
         updateTimestamp();
         return;
     }
@@ -529,11 +653,30 @@ async function fetchAllStatuses() {
         els.statusGrid.innerHTML += skeletonHtml;
     });
 
-    // Fetch deduplicated instances
+    // Skeleton for External Services Group
+    if (trackedExternalConfig.length > 0) {
+        const extSkeletonHtml = `
+            <div class="org-group">
+                <div class="org-group-header">
+                    <h2>External Services</h2>
+                    <span class="org-group-badge">Loading...</span>
+                </div>
+                <div class="dashboard-grid">
+                    ${trackedExternalConfig.map(() => '<div class="status-card glass-panel skeleton"><div class="card-header"><div class="skeleton-text short"></div><div class="skeleton-circle"></div></div><div class="skeleton-text long"></div></div>').join('')}
+                </div>
+            </div>
+        `;
+        els.statusGrid.innerHTML += extSkeletonHtml;
+    }
+
+    // Fetch deduplicated SF instances
     const fetchPromises = Array.from(uniqueInstances).map(instance => fetchInstanceData(instance));
     
+    // Fetch External Services
+    const fetchExternalPromises = trackedExternalConfig.map(svc => fetchExternalInstanceData(svc));
+
     try {
-        const results = await Promise.all(fetchPromises);
+        const results = await Promise.all([...fetchPromises, ...fetchExternalPromises]);
         
         // Store in local cache map for easy lookup
         fetchCache = {};
@@ -607,8 +750,60 @@ function renderDashboardDOM() {
         groupWrapper.appendChild(innerGrid);
         els.statusGrid.appendChild(groupWrapper);
     });
+
+    // Render External Services
+    if (trackedExternalConfig.length > 0) {
+        const extWrapper = document.createElement('div');
+        extWrapper.className = 'org-group';
+        
+        const extHeader = document.createElement('div');
+        extHeader.className = 'org-group-header';
+        
+        // Compute overall badge state for external services
+        let hasIncident = false;
+        let hasWarning = false;
+        
+        trackedExternalConfig.forEach(svc => {
+            const res = fetchCache[svc.id];
+            if (res && res.success && res.data) {
+                if (res.data.status === 'INCIDENT') hasIncident = true;
+                if (res.data.status === 'DEGRADATION') hasWarning = true;
+            }
+        });
+
+        let extBadgeText = 'Operational';
+        if (hasIncident) extBadgeText = 'Active Incidents';
+        else if (hasWarning) extBadgeText = 'Degraded Performance';
+
+        extHeader.innerHTML = `
+            <h2>External Services</h2>
+            <span class="org-group-badge">${extBadgeText}</span>
+        `;
+        extWrapper.appendChild(extHeader);
+        
+        const extInnerGrid = document.createElement('div');
+        extInnerGrid.className = 'dashboard-grid';
+        
+        trackedExternalConfig.forEach(svc => {
+            const sbResult = fetchCache[svc.id];
+            if (sbResult) {
+                // We use buildStatusCard but treat it as a top-level external service
+                extInnerGrid.appendChild(buildStatusCard(sbResult, false, svc.name, svc.id, true));
+            } else {
+                extInnerGrid.appendChild(buildStatusCard({success: false, instance: svc.id}, false, svc.name, svc.id, true));
+            }
+        });
+        
+        extWrapper.appendChild(extInnerGrid);
+        els.statusGrid.appendChild(extWrapper);
+    }
     
     updateTimestamp();
+}
+
+function updateTimestamp() {
+    const now = new Date();
+    els.lastUpdated.textContent = 'Last checked: ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 // ==========================================================================
@@ -677,6 +872,89 @@ async function fetchInstanceData(instance) {
     }
 }
 
+async function fetchExternalInstanceData(svc) {
+    try {
+        const response = await fetch(svc.api);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const rawData = await response.json();
+        
+        let normalizedData;
+        if (svc.type === 'atlassian') normalizedData = normalizeAtlassianData(rawData);
+        else if (svc.type === 'azure') normalizedData = normalizeAzureData(rawData);
+        
+        return { success: true, instance: svc.id, data: normalizedData };
+    } catch(e) {
+        console.error(`External fetch failed for ${svc.id}:`, e);
+        return { success: false, instance: svc.id, error: e.message };
+    }
+}
+
+function normalizeAtlassianData(rawData) {
+    // Determine high level status
+    // Atlassian indicator maps: none -> OK, minor -> DEGRADATION, major/critical -> INCIDENT
+    let mappedStatus = 'UNKNOWN';
+    const indicator = rawData.status && rawData.status.indicator ? rawData.status.indicator.toLowerCase() : 'none';
+    
+    if (indicator === 'none') mappedStatus = 'OK';
+    else if (indicator === 'minor') mappedStatus = 'DEGRADATION';
+    else if (indicator === 'major' || indicator === 'critical') mappedStatus = 'INCIDENT';
+
+    // Normalize incidents array
+    let mappedIncidents = [];
+    if (rawData.incidents && rawData.incidents.length > 0) {
+        mappedIncidents = rawData.incidents.map(inc => {
+            // Atlassian statuses: investigating, identified, monitoring, resolved, postmortem
+            const isResolved = (inc.status === 'resolved' || inc.status === 'postmortem');
+            
+            let mappedTimeline = [];
+            if (inc.incident_updates) {
+                mappedTimeline = inc.incident_updates.map(upd => ({
+                    title: upd.status ? (upd.status.charAt(0).toUpperCase() + upd.status.slice(1)) : 'Update',
+                    createdAt: upd.created_at,
+                    content: upd.body
+                }));
+            }
+            
+            return {
+                id: inc.id,
+                status: isResolved ? 'Resolved' : 'Active',
+                externalId: inc.id,
+                message: inc.name,
+                updatedAt: inc.updated_at,
+                timeline: mappedTimeline
+            };
+        });
+    }
+    
+    return { status: mappedStatus, Incidents: mappedIncidents };
+}
+
+function normalizeAzureData(rawData) {
+    // Azure rawData format: { status: { health: 'healthy|degraded|unhealthy', message: '' } }
+    let mappedStatus = 'UNKNOWN';
+    const health = rawData.status && rawData.status.health ? rawData.status.health.toLowerCase() : 'healthy';
+
+    if (health === 'healthy') mappedStatus = 'OK';
+    else if (health === 'degraded') mappedStatus = 'DEGRADATION';
+    else if (health === 'unhealthy') mappedStatus = 'INCIDENT';
+    
+    let mappedIncidents = [];
+    // Azure doesn't easily provide an incidents array in this endpoint format without crawling further, 
+    // so we fabricate one if there's a non-healthy state mapping.
+    if (mappedStatus !== 'OK' && rawData.status.message) {
+        mappedIncidents.push({
+            id: 'azure_inc_1',
+            status: 'Active',
+            externalId: 'AZURE_1',
+            message: rawData.status.message,
+            updatedAt: new Date().toISOString(),
+            timeline: [{ title: 'Update', createdAt: new Date().toISOString(), content: rawData.status.message }]
+        });
+    }
+    
+    return { status: mappedStatus, Incidents: mappedIncidents };
+}
+
 function getStatusInfo(statusString) {
     const status = (statusString || '').toUpperCase();
     switch(status) {
@@ -719,12 +997,17 @@ function filterAndDeduplicateIncidents(incidentsData) {
     return uniqueIncidents;
 }
 
-function buildStatusCard(result, isProd, displayName, parentProdId) {
+function buildStatusCard(result, isProd, displayName, parentProdId, isExternal = false) {
     const card = document.createElement('div');
-    const badgeLabel = isProd ? `<span class="badge" style="background: rgba(59,130,246,0.15); color: var(--accent-blue); border: 1px solid rgba(59,130,246,0.3)">PRODUCTION</span>` : `<span class="badge badge-sandbox">SANDBOX</span>`;
+    
+    let badgeLabel = `<span class="badge badge-sandbox">SANDBOX</span>`;
+    if (isProd) badgeLabel = `<span class="badge" style="background: rgba(59,130,246,0.15); color: var(--accent-blue); border: 1px solid rgba(59,130,246,0.3)">PRODUCTION</span>`;
+    if (isExternal) badgeLabel = `<span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3)">GLOBAL SERVICE</span>`;
     
     // Subtitle now shows the actual ID so the big header can use the alias
-    const subtitleText = result.instance !== displayName ? `Instance: ${result.instance}` : '';
+    const subtitleText = (result.instance !== displayName && !isExternal) ? `Instance: ${result.instance}` : '';
+    let iconClass = isProd ? 'ph-server' : 'ph-hard-drive';
+    if (isExternal) iconClass = 'ph-globe';
     
     if (!result.success) {
         card.className = 'status-card glass-panel status-unknown';
@@ -732,7 +1015,7 @@ function buildStatusCard(result, isProd, displayName, parentProdId) {
             <div class="card-header">
                 <div>
                     <div class="instance-id">
-                        <i class="ph ${isProd ? 'ph-server' : 'ph-hard-drive'}"></i>
+                        <i class="ph ${iconClass}"></i>
                         ${displayName}
                     </div>
                     ${badgeLabel}
