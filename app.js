@@ -12,6 +12,10 @@ let trackedConfig = [];
 
 // Storage for External Services (Jira, Bitbucket, Azure DevOps)
 const EXTERNAL_STORAGE_KEY = 'sf_status_external_instances';
+
+// App settings (title, etc.)
+const APP_SETTINGS_KEY = 'sf_status_app_settings';
+let appSettings = { appTitle: 'Watchtower', refreshIntervalMinutes: 2 };
 // Form: [{ id: 'jira', name: 'Jira Software', type: 'atlassian', url: 'https://jira-software.status.atlassian.com/api/v2/summary.json' }]
 let trackedExternalConfig = [];
 
@@ -19,6 +23,18 @@ const SUPPORTED_EXTERNAL_SERVICES = [
     { id: 'jira', name: 'Jira Software', type: 'atlassian', api: 'https://jira-software.status.atlassian.com/api/v2/summary.json', statusPageUrl: 'https://jira-software.status.atlassian.com/', incidentUrlTemplate: 'https://jira-software.status.atlassian.com/incidents/{id}' },
     { id: 'bitbucket', name: 'Atlassian Bitbucket', type: 'atlassian', api: 'https://bitbucket.status.atlassian.com/api/v2/summary.json', statusPageUrl: 'https://bitbucket.status.atlassian.com/', incidentUrlTemplate: 'https://bitbucket.status.atlassian.com/incidents/{id}' },
     { id: 'azure', name: 'Azure DevOps', type: 'azure', api: 'https://status.dev.azure.com/_apis/status/health?api-version=6.0-preview.1', statusPageUrl: 'https://status.dev.azure.com/', incidentUrlTemplate: null }
+];
+
+// Azure DevOps region options (id, display name)
+const AZURE_REGIONS = [
+    { id: 'US', name: 'United States' },
+    { id: 'CA', name: 'Canada' },
+    { id: 'BR', name: 'Brazil' },
+    { id: 'EU', name: 'Europe' },
+    { id: 'UK', name: 'United Kingdom' },
+    { id: 'APAC', name: 'Asia Pacific' },
+    { id: 'AU', name: 'Australia' },
+    { id: 'IN', name: 'India' }
 ];
 
 // ==========================================================================
@@ -48,7 +64,10 @@ const els = {
     // Config Tools
     btnExport: document.getElementById('btn-export'),
     btnImport: document.getElementById('btn-import'),
-    fileImport: document.getElementById('import-file')
+    fileImport: document.getElementById('import-file'),
+    appTitle: document.getElementById('app-title'),
+    appTitleInput: document.getElementById('app-title-input'),
+    refreshIntervalInput: document.getElementById('refresh-interval-input')
 };
 
 // ==========================================================================
@@ -57,12 +76,11 @@ const els = {
 function init() {
     loadInstances();
     loadExternalInstances();
+    loadAppSettings();
     populateExternalSelect();
     setupEventListeners();
     fetchAllStatuses();
-    
-    // Auto refresh every 2 minutes
-    setInterval(fetchAllStatuses, 2 * 60 * 1000);
+    startAutoRefresh();
 }
 
 function loadInstances() {
@@ -169,6 +187,41 @@ function saveExternalInstances() {
     localStorage.setItem(EXTERNAL_STORAGE_KEY, JSON.stringify(trackedExternalConfig));
 }
 
+function loadAppSettings() {
+    const saved = localStorage.getItem(APP_SETTINGS_KEY);
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            if (parsed && typeof parsed === 'object') {
+                appSettings = { appTitle: 'Watchtower', refreshIntervalMinutes: 2, ...parsed };
+            }
+        } catch (e) {
+            console.error('Failed to parse app settings:', e);
+        }
+    }
+    applyAppTitle();
+    if (els.appTitleInput) els.appTitleInput.value = appSettings.appTitle || 'Watchtower';
+    if (els.refreshIntervalInput) els.refreshIntervalInput.value = appSettings.refreshIntervalMinutes ?? 2;
+}
+
+let autoRefreshIntervalId = null;
+
+function startAutoRefresh() {
+    if (autoRefreshIntervalId) clearInterval(autoRefreshIntervalId);
+    const mins = Math.max(1, Math.min(120, parseInt(appSettings.refreshIntervalMinutes, 10) || 2));
+    appSettings.refreshIntervalMinutes = mins;
+    autoRefreshIntervalId = setInterval(() => fetchAllStatuses({ silent: true }), mins * 60 * 1000);
+}
+
+function saveAppSettings() {
+    localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(appSettings));
+}
+
+function applyAppTitle() {
+    const title = (appSettings.appTitle || 'Watchtower').trim() || 'Watchtower';
+    if (els.appTitle) els.appTitle.textContent = title;
+}
+
 function populateExternalSelect() {
     els.externalSelect.innerHTML = '<option value="" disabled selected>Select a Service</option>';
     SUPPORTED_EXTERNAL_SERVICES.forEach(svc => {
@@ -190,6 +243,41 @@ function setupEventListeners() {
     els.addForm.addEventListener('submit', handleAddProdInstance);
     els.addExternalBtn.addEventListener('click', handleAddExternalService);
     els.refreshBtn.addEventListener('click', handleManualRefresh);
+    
+    if (els.appTitleInput) {
+        els.appTitleInput.addEventListener('input', () => {
+            appSettings.appTitle = els.appTitleInput.value.trim() || 'Watchtower';
+            saveAppSettings();
+            applyAppTitle();
+        });
+        els.appTitleInput.addEventListener('blur', () => {
+            if (!els.appTitleInput.value.trim()) {
+                appSettings.appTitle = 'Watchtower';
+                els.appTitleInput.value = 'Watchtower';
+                saveAppSettings();
+                applyAppTitle();
+            }
+        });
+    }
+    if (els.refreshIntervalInput) {
+        els.refreshIntervalInput.addEventListener('change', () => {
+            const val = parseInt(els.refreshIntervalInput.value, 10);
+            const mins = isNaN(val) || val < 1 ? 2 : Math.min(120, val);
+            appSettings.refreshIntervalMinutes = mins;
+            els.refreshIntervalInput.value = mins;
+            saveAppSettings();
+            startAutoRefresh();
+        });
+        els.refreshIntervalInput.addEventListener('blur', () => {
+            const val = parseInt(els.refreshIntervalInput.value, 10);
+            if (isNaN(val) || val < 1) {
+                appSettings.refreshIntervalMinutes = 2;
+                els.refreshIntervalInput.value = 2;
+                saveAppSettings();
+                startAutoRefresh();
+            }
+        });
+    }
     
     // Config Tools
     els.btnExport.addEventListener('click', exportConfig);
@@ -226,16 +314,18 @@ function handleAddProdInstance(e) {
     fetchAllStatuses();
 }
 
-function handleAddSandbox(prodName, inputElement) {
-    const val = inputElement.value.trim().toUpperCase();
+function handleAddSandbox(prodName, instanceInput, aliasInput) {
+    const val = instanceInput.value.trim().toUpperCase();
     if (!val) return;
 
     const group = trackedConfig.find(g => g.prod === prodName);
     if (!group) return;
 
-    // Allow multiple sandboxes on the same instance, but not the exact same name initially
-    if (group.sandboxes.some(s => s.id === val && s.name === val)) {
-        alert('Sandbox instance already tracked with default name under this Organization.');
+    const aliasVal = aliasInput ? aliasInput.value.trim() : '';
+    const finalName = aliasVal || val;
+
+    if (group.sandboxes.some(s => s.id === val && s.name === finalName)) {
+        alert('Sandbox instance already tracked with this alias under this Organization.');
         return;
     }
 
@@ -244,9 +334,10 @@ function handleAddSandbox(prodName, inputElement) {
         return;
     }
 
-    group.sandboxes.push({ id: val, name: val });
+    group.sandboxes.push({ id: val, name: finalName });
     saveInstances();
-    inputElement.value = '';
+    instanceInput.value = '';
+    if (aliasInput) aliasInput.value = '';
     
     renderSidebarList();
     fetchAllStatuses();
@@ -273,7 +364,9 @@ function handleAddExternalService(e) {
 
     const svcDef = SUPPORTED_EXTERNAL_SERVICES.find(s => s.id === svcId);
     if (svcDef) {
-        trackedExternalConfig.push(svcDef);
+        const config = { ...svcDef };
+        if (svcDef.type === 'azure') config.shownRegions = [];
+        trackedExternalConfig.push(config);
         saveExternalInstances();
         renderExternalList();
         els.externalSelect.value = '';
@@ -365,8 +458,11 @@ function handleManualRefresh() {
     const icon = els.refreshBtn.querySelector('i');
     icon.classList.add('spinning');
     
-    fetchAllStatuses().finally(() => {
-        setTimeout(() => icon.classList.remove('spinning'), 500); 
+    fetchAllStatuses({ silent: true }).finally(() => {
+        setTimeout(() => {
+            icon.classList.remove('spinning');
+            showRefreshSuccess();
+        }, 500);
     });
 }
 
@@ -451,7 +547,7 @@ function renderSidebarList() {
     els.instanceList.innerHTML = '';
     
     if (trackedConfig.length === 0) {
-        els.instanceList.innerHTML = `<div style="text-align:center; color: var(--text-muted); font-size: 0.85rem; padding: 1rem 0;">No Production Orgs tracked.</div>`;
+        els.instanceList.innerHTML = `<div style="text-align:center; color: var(--text-muted); font-size: 0.85rem; padding: 1rem 0;">No Salesforce orgs tracked.</div>`;
         return;
     }
 
@@ -544,13 +640,19 @@ function renderSidebarList() {
         const addSbForm = document.createElement('form');
         addSbForm.className = 'add-sandbox-form';
         addSbForm.innerHTML = `
-            <input type="text" class="add-sandbox-input" placeholder="Add Sandbox (CS71)" required>
-            <button type="submit" class="btn-sandbox-add" title="Add Sandbox"><i class="ph ph-plus"></i></button>
+            <div style="display: flex; flex-direction: column; gap: 0.4rem; flex-grow: 1;">
+                <input type="text" class="add-sandbox-input" placeholder="Instance (e.g. CS71)" required autocomplete="off">
+                <div style="display: flex; gap: 0.4rem;">
+                    <input type="text" class="add-sandbox-alias" placeholder="Alias (Optional)" autocomplete="off" style="flex-grow: 1;">
+                    <button type="submit" class="btn-sandbox-add" title="Add Sandbox"><i class="ph ph-plus"></i></button>
+                </div>
+            </div>
         `;
         addSbForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            const input = addSbForm.querySelector('.add-sandbox-input');
-            handleAddSandbox(group.prod, input);
+            const instanceInput = addSbForm.querySelector('.add-sandbox-input');
+            const aliasInput = addSbForm.querySelector('.add-sandbox-alias');
+            handleAddSandbox(group.prod, instanceInput, aliasInput);
         });
         section.appendChild(addSbForm);
 
@@ -603,19 +705,107 @@ function renderExternalList() {
         item.appendChild(titleContainer);
         item.appendChild(removeBtn);
         list.appendChild(item);
+
+        if (svc.type === 'azure') {
+            const filtersDetails = document.createElement('details');
+            filtersDetails.className = 'org-filters-details';
+            filtersDetails.style.marginTop = '0.3rem';
+            filtersDetails.innerHTML = `
+                <summary><i class="ph ph-map-trifold"></i> Filter Regions</summary>
+                <div id="filters-azure-${svc.id}" class="filter-list">
+                    <div style="font-size: 0.75rem; color: var(--text-muted); padding: 0.3rem 0;">Select regions to display</div>
+                </div>
+            `;
+            item.appendChild(filtersDetails);
+        }
     });
 
     els.externalList.appendChild(list);
+    populateAzureRegionFilters();
 }
+
+function populateAzureRegionFilters() {
+    trackedExternalConfig.filter(s => s.type === 'azure').forEach(svc => {
+        const container = document.getElementById(`filters-azure-${svc.id}`);
+        if (!container) return;
+
+        const shownList = svc.shownRegions || [];
+        let html = '';
+        AZURE_REGIONS.forEach(reg => {
+            const isChecked = shownList.length === 0 || shownList.includes(reg.id);
+            html += `
+                <label class="filter-item">
+                    <input type="checkbox" value="${reg.id}" ${isChecked ? 'checked' : ''} onchange="toggleAzureRegionFilter('${svc.id}', '${reg.id}', this.checked)">
+                    ${reg.name} (${reg.id})
+                </label>
+            `;
+        });
+        container.innerHTML = html;
+    });
+}
+
+window.toggleAzureRegionFilter = function(svcId, regionId, isChecked) {
+    const svc = trackedExternalConfig.find(s => s.id === svcId);
+    if (!svc) return;
+    if (!svc.shownRegions) svc.shownRegions = [];
+    const allIds = AZURE_REGIONS.map(r => r.id);
+
+    if (isChecked) {
+        if (!svc.shownRegions.includes(regionId)) svc.shownRegions.push(regionId);
+        if (svc.shownRegions.length === allIds.length) svc.shownRegions = [];
+    } else {
+        if (svc.shownRegions.length === 0) svc.shownRegions = [...allIds];
+        svc.shownRegions = svc.shownRegions.filter(r => r !== regionId);
+    }
+    
+    saveExternalInstances();
+    renderDashboardDOM();
+};
 
 // ==========================================================================
 // API & Main Grid Rendering (with Deduplication)
 // ==========================================================================
 let fetchCache = {};
 
-async function fetchAllStatuses() {
+/** Normalize status from API (string or object) to a comparable string. */
+function normalizeStatusValue(status) {
+    if (status == null) return '';
+    if (typeof status === 'string') return status;
+    if (typeof status === 'object') return status.indicator || status.value || status.status || '';
+    return String(status);
+}
+
+/** Returns a digest string for cache comparison. Only re-renders when display-relevant data changes. */
+function getCacheDigest(cache) {
+    const parts = [];
+    Object.keys(cache).sort().forEach(instance => {
+        const r = cache[instance];
+        if (!r) return;
+        let sig = `${instance}:${r.success ? '1' : '0'}`;
+        if (r.success && r.data) {
+            const d = r.data;
+            sig += `:${normalizeStatusValue(d.status)}`;
+            const incIds = (d.Incidents || []).map(i => `${i.id}:${i.status}`).sort().join(',');
+            sig += `:${incIds}`;
+            sig += `:${(d.Maintenances || []).length}`;
+            const maintStarts = (d.Maintenances || []).map(m => m.startDate).sort().join(',');
+            sig += `:${maintStarts}`;
+            sig += `:${d.releaseVersion || ''}`;
+            if (d.Components) sig += `:C${d.Components.map(c => `${c.key}:${c.status}`).sort().join(',')}`;
+            if (d.AzureServices) {
+                const azParts = d.AzureServices.map(s =>
+                    `${s.id}:${(s.geographies || []).map(g => `${g.id}:${g.health}`).join(';')}`
+                ).join('|');
+                sig += `:A${azParts}`;
+            }
+        }
+        parts.push(sig);
+    });
+    return parts.join('||');
+}
+
+async function fetchAllStatuses(options = {}) {
     if (trackedConfig.length === 0 && trackedExternalConfig.length === 0) {
-        // Assume renderEmptyState exists or manually clear grid if needed
         els.statusGrid.innerHTML = '';
         els.statusGrid.classList.remove('dashboard-grid');
         els.statusGrid.innerHTML = `<div style="text-align:center; padding: 4rem; color: var(--text-muted);">
@@ -627,46 +817,52 @@ async function fetchAllStatuses() {
         return;
     }
 
-    // Render skeleton groups
-    els.statusGrid.innerHTML = '';
-    els.statusGrid.classList.remove('dashboard-grid'); 
-    
+    const isBackgroundRefresh = options.silent === true && Object.keys(fetchCache).length > 0;
+    const previousDigest = isBackgroundRefresh ? getCacheDigest(fetchCache) : null;
+
+    if (!isBackgroundRefresh) {
+        els.statusGrid.innerHTML = '';
+        els.statusGrid.classList.remove('dashboard-grid');
+    }
+
     // Collect unique instance IDs to fetch across everything
     const uniqueInstances = new Set();
     
     trackedConfig.forEach(group => {
         uniqueInstances.add(group.prod);
         group.sandboxes.forEach(sb => uniqueInstances.add(sb.id));
-        
-        const skeletonHtml = `
-            <div class="org-group">
-                <div class="org-group-header">
-                    <h2>${group.prodName}</h2>
-                    <span class="org-group-badge">Loading...</span>
-                </div>
-                <div class="dashboard-grid">
-                    <div class="status-card glass-panel skeleton"><div class="card-header"><div class="skeleton-text short"></div><div class="skeleton-circle"></div></div><div class="skeleton-text long"></div></div>
-                    ${group.sandboxes.map(() => '<div class="status-card glass-panel skeleton"><div class="card-header"><div class="skeleton-text short"></div><div class="skeleton-circle"></div></div><div class="skeleton-text long"></div></div>').join('')}
-                </div>
-            </div>
-        `;
-        els.statusGrid.innerHTML += skeletonHtml;
     });
 
-    // Skeleton for External Services Group
-    if (trackedExternalConfig.length > 0) {
-        const extSkeletonHtml = `
-            <div class="org-group">
-                <div class="org-group-header">
-                    <h2>External Services</h2>
-                    <span class="org-group-badge">Loading...</span>
+    if (!isBackgroundRefresh) {
+        trackedConfig.forEach(group => {
+            const skeletonHtml = `
+                <div class="org-group">
+                    <div class="org-group-header">
+                        <h2>${group.prodName}</h2>
+                        <span class="org-group-badge">Loading...</span>
+                    </div>
+                    <div class="dashboard-grid">
+                        <div class="status-card glass-panel skeleton"><div class="card-header"><div class="skeleton-text short"></div><div class="skeleton-circle"></div></div><div class="skeleton-text long"></div></div>
+                        ${group.sandboxes.map(() => '<div class="status-card glass-panel skeleton"><div class="card-header"><div class="skeleton-text short"></div><div class="skeleton-circle"></div></div><div class="skeleton-text long"></div></div>').join('')}
+                    </div>
                 </div>
-                <div class="dashboard-grid">
-                    ${trackedExternalConfig.map(() => '<div class="status-card glass-panel skeleton"><div class="card-header"><div class="skeleton-text short"></div><div class="skeleton-circle"></div></div><div class="skeleton-text long"></div></div>').join('')}
+            `;
+            els.statusGrid.innerHTML += skeletonHtml;
+        });
+        if (trackedExternalConfig.length > 0) {
+            const extSkeletonHtml = `
+                <div class="org-group">
+                    <div class="org-group-header">
+                        <h2>External Services</h2>
+                        <span class="org-group-badge">Loading...</span>
+                    </div>
+                    <div class="dashboard-grid">
+                        ${trackedExternalConfig.map(() => '<div class="status-card glass-panel skeleton"><div class="card-header"><div class="skeleton-text short"></div><div class="skeleton-circle"></div></div><div class="skeleton-text long"></div></div>').join('')}
+                    </div>
                 </div>
-            </div>
-        `;
-        els.statusGrid.innerHTML += extSkeletonHtml;
+            `;
+            els.statusGrid.innerHTML += extSkeletonHtml;
+        }
     }
 
     // Fetch deduplicated SF instances
@@ -678,19 +874,25 @@ async function fetchAllStatuses() {
     try {
         const results = await Promise.all([...fetchPromises, ...fetchExternalPromises]);
         
-        // Store in local cache map for easy lookup
-        fetchCache = {};
+        const newCache = {};
         results.forEach(res => {
-            fetchCache[res.instance] = res;
+            newCache[res.instance] = res;
         });
+        const newDigest = getCacheDigest(newCache);
 
-        // Build the checkbox UI
+        if (isBackgroundRefresh && newDigest === previousDigest) {
+            fetchCache = newCache;
+            showRefreshSuccess();
+            return;
+        }
+
+        fetchCache = newCache;
         populateOrgFilters();
-
-        // Render dashboard immediately
         renderDashboardDOM();
+        showRefreshSuccess();
     } catch (err) {
         console.error('Error fetching data:', err);
+        if (!isBackgroundRefresh) renderDashboardDOM();
     }
 }
 
@@ -800,9 +1002,22 @@ function renderDashboardDOM() {
     updateTimestamp();
 }
 
-function updateTimestamp() {
+function updateTimestamp(showSuccess = false) {
     const now = new Date();
-    els.lastUpdated.textContent = 'Last checked: ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    els.lastUpdated.textContent = 'Last checked: ' + timeStr;
+    if (showSuccess) {
+        els.lastUpdated.textContent = 'Last checked: ' + timeStr + ' ✓';
+        els.lastUpdated.classList.add('refresh-success');
+        setTimeout(() => {
+            els.lastUpdated.textContent = 'Last checked: ' + timeStr;
+            els.lastUpdated.classList.remove('refresh-success');
+        }, 2000);
+    }
+}
+
+function showRefreshSuccess() {
+    updateTimestamp(true);
 }
 
 // ==========================================================================
@@ -811,7 +1026,8 @@ function updateTimestamp() {
 function exportConfig() {
     const backup = {
         trackedConfig: trackedConfig,
-        trackedExternalConfig: trackedExternalConfig
+        trackedExternalConfig: trackedExternalConfig,
+        appSettings: appSettings
     };
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backup, null, 2));
     const titleDate = new Date().toISOString().split('T')[0];
@@ -843,8 +1059,21 @@ function importConfig(event) {
                 if (parsed.trackedExternalConfig && Array.isArray(parsed.trackedExternalConfig)) {
                      trackedExternalConfig = parsed.trackedExternalConfig
                          .filter(s => SUPPORTED_EXTERNAL_SERVICES.some(def => def.id === s.id))
-                         .map(s => SUPPORTED_EXTERNAL_SERVICES.find(def => def.id === s.id) || s);
+                         .map(s => {
+                             const def = SUPPORTED_EXTERNAL_SERVICES.find(d => d.id === s.id);
+                             const merged = { ...def, ...s };
+                             if (s.type === 'azure' && !Array.isArray(merged.shownRegions)) merged.shownRegions = [];
+                             return merged;
+                         });
                      saveExternalInstances();
+                }
+                if (parsed.appSettings && typeof parsed.appSettings === 'object') {
+                     appSettings = { appTitle: 'Watchtower', refreshIntervalMinutes: 2, ...parsed.appSettings };
+                     saveAppSettings();
+                     applyAppTitle();
+                     startAutoRefresh();
+                     if (els.appTitleInput) els.appTitleInput.value = appSettings.appTitle || 'Watchtower';
+                     if (els.refreshIntervalInput) els.refreshIntervalInput.value = appSettings.refreshIntervalMinutes ?? 2;
                 }
                 
                 els.inputError.classList.add('hidden');
@@ -992,15 +1221,23 @@ function normalizeAzureData(rawData) {
 }
 
 function getStatusInfo(statusString) {
-    const status = (statusString || '').toUpperCase();
+    const status = (normalizeStatusValue(statusString) || '').toUpperCase();
     switch(status) {
-        case 'OK': return { raw: status, label: 'Operational', class: 'status-ok' };
+        case 'OK':
+        case 'AVAILABLE': return { raw: status, label: 'Operational', class: 'status-ok' };
         case 'MAJOR_INCIDENT_CORE':
         case 'MAJOR_INCIDENT_NONCORE':
-        case 'INCIDENT': return { raw: status, label: 'Incident', class: 'status-critical' };
+        case 'MINOR_INCIDENT_CORE':
+        case 'MINOR_INCIDENT_NONCORE':
+        case 'INCIDENT':
+        case 'OUTAGE':
+        case 'SERVICE DISRUPTION': return { raw: status, label: 'Incident', class: 'status-critical' };
         case 'DEGRADATION':
+        case 'PERFORMANCE DEGRADATION':
+        case 'MAINTENANCE':
         case 'MAINTENANCE_CORE':
         case 'MAINTENANCE_NONCORE': return { raw: status, label: 'Warning', class: 'status-warning' };
+        case 'INFORMATIONAL': return { raw: status, label: 'Informational', class: 'status-ok' };
         default: return { raw: status || 'UNKNOWN', label: 'Unknown', class: 'status-unknown' };
     }
 }
@@ -1223,20 +1460,28 @@ function buildStatusCard(result, isProd, displayName, parentProdId, isExternal =
         componentsHtml = `<div class="sub-services"><div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem;">Components</div>${pillNodes.join('')}</div>`;
     }
 
-    // Azure Services with geographies
+    // Azure Services (Components-style: one pill per region+service combination)
     let azureServicesHtml = '';
-    if (isExternal && data.AzureServices && data.AzureServices.length > 0) {
-        const serviceRows = data.AzureServices.map(svc => {
-            const geoPills = (svc.geographies || []).map(g => {
+    if (isExternal && provider && provider.type === 'azure' && data.AzureServices && data.AzureServices.length > 0) {
+        const azureSvc = trackedExternalConfig.find(s => s.id === result.instance);
+        const selectedRegions = (azureSvc && azureSvc.shownRegions && azureSvc.shownRegions.length > 0)
+            ? azureSvc.shownRegions
+            : AZURE_REGIONS.map(r => r.id);
+
+        const regionNames = Object.fromEntries(AZURE_REGIONS.map(r => [r.id, r.name]));
+        const pills = [];
+        data.AzureServices.forEach(svc => {
+            (svc.geographies || []).filter(g => selectedRegions.includes(g.id)).forEach(geo => {
+                const health = (geo.health || 'healthy').toLowerCase();
                 let dotClass = 'service-dot';
-                const h = (g.health || 'healthy').toLowerCase();
-                if (h === 'degraded' || h === 'advisory') dotClass = 'service-dot warn';
-                else if (h === 'unhealthy') dotClass = 'service-dot down';
-                return `<span class="service-pill" style="font-size: 0.7rem; padding: 0.15rem 0.4rem;" title="${g.name}: ${g.health}"><div class="${dotClass}" style="width: 5px; height: 5px;"></div>${g.id}</span>`;
-            }).join('');
-            return `<div style="margin-bottom: 0.5rem;"><div style="font-size: 0.8rem; font-weight: 500; margin-bottom: 0.2rem;">${svc.id}</div><div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">${geoPills}</div></div>`;
-        }).join('');
-        azureServicesHtml = `<div class="sub-services" style="margin-top: 0.5rem;"><div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem;">Services by Region</div>${serviceRows}</div>`;
+                if (health === 'degraded' || health === 'advisory') dotClass = 'service-dot warn';
+                else if (health === 'unhealthy') dotClass = 'service-dot down';
+                pills.push({ region: geo.id, service: svc.id, dotClass, name: regionNames[geo.id] || geo.id });
+            });
+        });
+        pills.sort((a, b) => a.region.localeCompare(b.region) || a.service.localeCompare(b.service));
+        const pillNodes = pills.map(p => `<div class="service-pill" title="${p.name} • ${p.service}"><div class="${p.dotClass}"></div>${p.region} ${p.service}</div>`);
+        azureServicesHtml = `<div class="sub-services"><div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem;">Components</div>${pillNodes.join('')}</div>`;
     }
 
     const locText = data.location ? `• ${data.location}` : '';
@@ -1270,12 +1515,6 @@ function buildStatusCard(result, isProd, displayName, parentProdId, isExternal =
                 <span class="detail-value" style="color: var(--${statusInfo.class.replace('status-', 'status-')})">${statusInfo.label}</span>
             </div>
             ${data.statusDescription ? `<div class="detail-row"><span class="detail-label"></span><span class="detail-value" style="font-size: 0.85rem; color: var(--text-secondary);">${data.statusDescription}</span></div>` : ''}
-            ${ data.maintenanceWindow ? `
-                <div class="detail-row">
-                    <span class="detail-label"><i class="ph ph-clock"></i> Weekly Window</span>
-                    <span class="detail-value">${data.maintenanceWindow}</span>
-                </div>
-            ` : ''}
             
             ${!isExternal ? `<div class="release-version">Release: ${data.releaseVersion || 'N/A'}</div>` : ''}
             
@@ -1298,11 +1537,6 @@ function renderEmptyState() {
             <p>Add a Salesforce Organization to begin monitoring.</p>
         </div>
     `;
-}
-
-function updateTimestamp() {
-    const now = new Date();
-    els.lastUpdated.textContent = `Last checked: ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 }
 
 // ==========================================================================

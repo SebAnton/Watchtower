@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Watchtower</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏰</text></svg>">
     <!-- Modern typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,12 +24,12 @@
         <aside class="sidebar glass-panel">
             <div class="sidebar-header">
                 <i class="ph ph-cloud-warning text-gradient"></i>
-                <h2>Salesforce Configuration</h2>
+                <h2>Configuration</h2>
             </div>
             
             <div class="sidebar-content">
                 <div class="config-section">
-                    <h3>Production Orgs</h3>
+                    <h3>Salesforce</h3>
                     <p class="subtitle">Add a Production Org to track it and its related sandboxes.</p>
                     
                     <div id="instance-list" class="instance-list">
@@ -72,6 +73,14 @@
             </div>
 
             <div class="sidebar-footer">
+                <div class="app-title-section" style="margin-bottom: 1rem;">
+                    <label for="app-title-input" style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">App title</label>
+                    <input type="text" id="app-title-input" placeholder="Watchtower" autocomplete="off" style="width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-glass); border-radius: 0.5rem; padding: 0.5rem 0.75rem; color: var(--text-primary); font-family: var(--font-family); font-size: 0.9rem; outline: none;">
+                </div>
+                <div class="refresh-interval-section" style="margin-bottom: 1rem;">
+                    <label for="refresh-interval-input" style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">Refresh interval (minutes)</label>
+                    <input type="number" id="refresh-interval-input" min="1" max="120" placeholder="2" autocomplete="off" style="width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-glass); border-radius: 0.5rem; padding: 0.5rem 0.75rem; color: var(--text-primary); font-family: var(--font-family); font-size: 0.9rem; outline: none;">
+                </div>
                 <div class="sidebar-actions" style="display: flex; gap: 0.5rem; justify-content: center; margin-bottom: 1rem;">
                     <button id="btn-export" class="btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; flex-grow: 1;" title="Export Config">
                         <i class="ph ph-download-simple"></i> Export
@@ -93,7 +102,7 @@
                         <i class="ph ph-list"></i>
                     </button>
                     <div>
-                        <h1>Watchtower</h1>
+                        <h1 id="app-title">Watchtower</h1>
                         <span class="last-updated" id="last-updated">Last checked: Just now</span>
                     </div>
                 </div>
