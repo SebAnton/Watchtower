@@ -409,6 +409,11 @@ input[type="text"]::placeholder {
     color: var(--text-secondary);
 }
 
+.last-updated.refresh-success {
+    color: var(--status-ok);
+    transition: color 0.2s ease;
+}
+
 .btn-icon {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--border-glass);
@@ -1002,8 +1007,21 @@ input[type="text"]::placeholder {
     min-width: 0;
 }
 
-.add-sandbox-input:focus {
+.add-sandbox-input:focus,
+.add-sandbox-alias:focus {
     border-color: #c084fc;
+}
+
+.add-sandbox-alias {
+    flex-grow: 1;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-glass);
+    border-radius: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    color: var(--text-primary);
+    font-family: var(--font-family);
+    font-size: 0.9rem;
+    outline: none;
 }
 
 .btn-sandbox-add {
