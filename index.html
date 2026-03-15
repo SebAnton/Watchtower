@@ -106,7 +106,15 @@
                         <span class="last-updated" id="last-updated">Last checked: Just now</span>
                     </div>
                 </div>
-                <div class="nav-right">
+                <div class="nav-right" style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="view-toggle" role="group" aria-label="Dashboard view">
+                        <button id="view-cards-btn" class="btn-icon btn-view active" title="Card view">
+                            <i class="ph ph-squares-four"></i>
+                        </button>
+                        <button id="view-table-btn" class="btn-icon btn-view" title="Table view">
+                            <i class="ph ph-table"></i>
+                        </button>
+                    </div>
                     <button id="refresh-btn" class="btn-icon" title="Refresh Now">
                         <i class="ph ph-arrows-clockwise"></i>
                     </button>
@@ -150,6 +158,19 @@
         </div>
     </div>
     
-    <script src="app.js"></script>
+    <!-- Modular application scripts (load order matters) -->
+    <script src="js/utils.js"></script>
+    <script src="js/constants.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/dom.js"></script>
+    <script src="js/status.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/modal.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/events.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>
