@@ -27,7 +27,9 @@
         fileImport: document.getElementById('import-file'),
         appTitle: document.getElementById('app-title'),
         appTitleInput: document.getElementById('app-title-input'),
-        refreshIntervalInput: document.getElementById('refresh-interval-input')
+        refreshIntervalInput: document.getElementById('refresh-interval-input'),
+        viewCardsBtn: document.getElementById('view-cards-btn'),
+        viewTableBtn: document.getElementById('view-table-btn')
     };
 
     global.Watchtower = global.Watchtower || {};

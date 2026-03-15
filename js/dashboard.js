@@ -247,8 +247,150 @@
         return card;
     }
 
+    function applyViewToggle() {
+        const view = state.appSettings.dashboardView || 'cards';
+        if (els.viewCardsBtn && els.viewTableBtn) {
+            els.viewCardsBtn.classList.toggle('active', view === 'cards');
+            els.viewTableBtn.classList.toggle('active', view === 'table');
+        }
+        els.statusGrid.classList.toggle('dashboard-table-view', view === 'table');
+    }
+
+    function renderTableDOM() {
+        const tableRowHtml = (r) => `
+            <tr class="status-row status-${r.statusInfo.class.replace('status-', '')}">
+                <td class="status-indicator-cell">
+                    <a href="${escapeHtml(r.statusPageLink.url)}" target="_blank" class="table-instance-link" title="${escapeHtml(r.statusPageLink.title)}">
+                        ${escapeHtml(r.name)}
+                        ${r.instance !== r.name ? `<span class="table-instance-id">${escapeHtml(r.instance)}</span>` : ''}
+                        <i class="ph ph-arrow-square-out table-link-icon"></i>
+                    </a>
+                </td>
+                <td><span class="table-badge ${r.typeClass}">${escapeHtml(r.type)}</span></td>
+                <td><span class="table-status ${r.statusInfo.class}">${escapeHtml(r.statusInfo.label)}</span></td>
+                <td class="table-incidents">${escapeHtml(r.incidentSummary)}</td>
+                <td class="table-release">${r.release}</td>
+            </tr>
+        `;
+
+        const tableRows = [];
+
+        state.trackedConfig.forEach(group => {
+            tableRows.push(`<tr class="table-group-header"><td colspan="5"><i class="ph ph-hard-drives"></i> ${escapeHtml(group.prodName)}</td></tr>`);
+
+            const prodResult = state.fetchCache[group.prod];
+            const statusInfo = prodResult && prodResult.success && prodResult.data
+                ? getStatusInfo(prodResult.data.status)
+                : { label: 'Error', class: 'status-unknown' };
+            const incidents = prodResult && prodResult.success && prodResult.data
+                ? filterAndDeduplicateIncidents(prodResult.data.Incidents)
+                : new Map();
+            const incidentSummary = incidents.size > 0
+                ? (Array.from(incidents.values())[0].status === 'Resolved' ? '1 resolved' : `${incidents.size} active`)
+                : '—';
+            const release = prodResult && prodResult.success && prodResult.data && prodResult.data.releaseVersion
+                ? escapeHtml(prodResult.data.releaseVersion)
+                : '—';
+            const statusPageLink = prodResult && prodResult.success
+                ? getStatusPageLink(group.prod, null, false)
+                : { url: `https://status.salesforce.com/instances/${group.prod}`, title: 'View on Trust' };
+            tableRows.push(tableRowHtml({
+                name: group.prodName,
+                instance: group.prod,
+                type: 'Production',
+                typeClass: 'badge-prod',
+                statusInfo,
+                incidentSummary,
+                release,
+                statusPageLink
+            }));
+
+            group.sandboxes.forEach(sb => {
+                const sbResult = state.fetchCache[sb.id];
+                const sbStatusInfo = sbResult && sbResult.success && sbResult.data
+                    ? getStatusInfo(sbResult.data.status)
+                    : { label: 'Error', class: 'status-unknown' };
+                const sbIncidents = sbResult && sbResult.success && sbResult.data
+                    ? filterAndDeduplicateIncidents(sbResult.data.Incidents)
+                    : new Map();
+                const sbIncidentSummary = sbIncidents.size > 0
+                    ? (Array.from(sbIncidents.values())[0].status === 'Resolved' ? '1 resolved' : `${sbIncidents.size} active`)
+                    : '—';
+                const sbRelease = sbResult && sbResult.success && sbResult.data && sbResult.data.releaseVersion
+                    ? escapeHtml(sbResult.data.releaseVersion)
+                    : '—';
+                const sbLink = sbResult && sbResult.success
+                    ? getStatusPageLink(sb.id, null, false)
+                    : { url: `https://status.salesforce.com/instances/${sb.id}`, title: 'View on Trust' };
+                tableRows.push(tableRowHtml({
+                    name: sb.name,
+                    instance: sb.id,
+                    type: 'Sandbox',
+                    typeClass: 'badge-sandbox',
+                    statusInfo: sbStatusInfo,
+                    incidentSummary: sbIncidentSummary,
+                    release: sbRelease,
+                    statusPageLink: sbLink
+                }));
+            });
+        });
+
+        if (state.trackedExternalConfig.length > 0) {
+            tableRows.push(`<tr class="table-group-header"><td colspan="5"><i class="ph ph-globe"></i> External Services</td></tr>`);
+            state.trackedExternalConfig.forEach(svc => {
+                const res = state.fetchCache[svc.id];
+                const statusInfo = res && res.success && res.data
+                    ? getStatusInfo(res.data.status)
+                    : { label: 'Error', class: 'status-unknown' };
+                const incidents = res && res.success && res.data
+                    ? filterAndDeduplicateIncidents(res.data.Incidents)
+                    : new Map();
+                const incidentSummary = incidents.size > 0
+                    ? (Array.from(incidents.values())[0].status === 'Resolved' ? '1 resolved' : `${incidents.size} active`)
+                    : '—';
+                const statusPageLink = svc.statusPageUrl
+                    ? { url: escapeHtml(svc.statusPageUrl), title: `View ${escapeHtml(svc.name)}` }
+                    : { url: '#', title: '' };
+                tableRows.push(tableRowHtml({
+                    name: svc.name,
+                    instance: svc.id,
+                    type: 'External',
+                    typeClass: 'badge-external',
+                    statusInfo,
+                    incidentSummary,
+                    release: '—',
+                    statusPageLink
+                }));
+            });
+        }
+
+        return `
+            <div class="dashboard-table-wrapper glass-panel">
+                <table class="dashboard-table">
+                    <thead>
+                        <tr>
+                            <th>Instance</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Incidents</th>
+                            <th>Release</th>
+                        </tr>
+                    </thead>
+                    <tbody>${tableRows.join('')}</tbody>
+                </table>
+            </div>
+        `;
+    }
+
     function renderDashboardDOM() {
         els.statusGrid.innerHTML = '';
+
+        const view = state.appSettings.dashboardView || 'cards';
+        if (view === 'table') {
+            els.statusGrid.innerHTML = renderTableDOM();
+            updateTimestamp();
+            return;
+        }
 
         state.trackedConfig.forEach(group => {
             const prodResult = state.fetchCache[group.prod];
@@ -341,7 +483,9 @@
     global.Watchtower.dashboard = {
         updateTimestamp,
         showRefreshSuccess,
+        applyViewToggle,
         buildStatusCard,
-        renderDashboardDOM
+        renderDashboardDOM,
+        renderTableDOM
     };
 })(typeof window !== 'undefined' ? window : this);

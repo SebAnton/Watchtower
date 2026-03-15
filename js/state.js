@@ -8,7 +8,7 @@
 
     let trackedConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
     let trackedExternalConfig = [];
-    let appSettings = { appTitle: 'Watchtower', refreshIntervalMinutes: 2 };
+    let appSettings = { appTitle: 'Watchtower', refreshIntervalMinutes: 2, dashboardView: 'cards' };
     let fetchCache = {};
     let autoRefreshIntervalId = null;
 

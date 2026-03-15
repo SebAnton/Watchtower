@@ -13,6 +13,7 @@ Watchtower is a modern, interactive dashboard for monitoring the status of Sales
 - **Configuration Portability**: Export your configured orgs, sandboxes, external services, and app settings to a JSON file and import them anywhere.
 - **Customizable App Title**: Set a custom dashboard title (e.g., your team or project name).
 - **Configurable Auto-Refresh**: Set refresh interval from 1 to 120 minutes (default 2 minutes), with a manual refresh button for immediate updates.
+- **Dual View Modes**: Switch between a card-based grid view and a compact table view for a denser overview of all instances.
 - **Lightweight & Fast**: Zero-dependency vanilla HTML, CSS, and JavaScript. No build steps or heavy frameworks required.
 - **Premium UI**: Crafted with dynamic CSS variables, glassmorphism effects, fluid animations, and modern typography (Outfit font & Phosphor Icons).
 

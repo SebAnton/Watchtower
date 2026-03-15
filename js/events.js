@@ -181,6 +181,22 @@
         els.btnExport.addEventListener('click', Watchtower.config.exportConfig);
         els.btnImport.addEventListener('click', () => els.fileImport.click());
         els.fileImport.addEventListener('change', Watchtower.config.importConfig);
+
+        if (els.viewCardsBtn && els.viewTableBtn) {
+            Watchtower.dashboard.applyViewToggle();
+            els.viewCardsBtn.addEventListener('click', () => {
+                state.appSettings.dashboardView = 'cards';
+                Watchtower.storage.saveAppSettings();
+                Watchtower.dashboard.applyViewToggle();
+                Watchtower.dashboard.renderDashboardDOM();
+            });
+            els.viewTableBtn.addEventListener('click', () => {
+                state.appSettings.dashboardView = 'table';
+                Watchtower.storage.saveAppSettings();
+                Watchtower.dashboard.applyViewToggle();
+                Watchtower.dashboard.renderDashboardDOM();
+            });
+        }
     }
 
     global.Watchtower = global.Watchtower || {};

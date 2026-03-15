@@ -107,7 +107,7 @@
             try {
                 const parsed = JSON.parse(saved);
                 if (parsed && typeof parsed === 'object') {
-                    state.appSettings = { appTitle: 'Watchtower', refreshIntervalMinutes: 2, ...parsed };
+                    state.appSettings = { appTitle: 'Watchtower', refreshIntervalMinutes: 2, dashboardView: 'cards', ...parsed };
                 }
             } catch (e) {
                 console.error('Failed to parse app settings:', e);

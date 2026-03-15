@@ -63,7 +63,7 @@
                         Watchtower.storage.saveExternalInstances();
                     }
                     if (parsed.appSettings && typeof parsed.appSettings === 'object') {
-                        state.appSettings = { appTitle: 'Watchtower', refreshIntervalMinutes: 2, ...parsed.appSettings };
+                        state.appSettings = { appTitle: 'Watchtower', refreshIntervalMinutes: 2, dashboardView: 'cards', ...parsed.appSettings };
                         Watchtower.storage.saveAppSettings();
                         applyAppTitle();
                         startAutoRefresh();
