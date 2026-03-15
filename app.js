@@ -38,6 +38,27 @@ const AZURE_REGIONS = [
 ];
 
 // ==========================================================================
+// Utilities
+// ==========================================================================
+/** Escape string for safe use in HTML attributes and content to prevent XSS. */
+function escapeHtml(str) {
+    if (str == null) return '';
+    const s = String(str);
+    return s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+/** Escape string for safe use inside a single-quoted JavaScript string in HTML. */
+function escapeForJsString(str) {
+    if (str == null) return '';
+    return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+// ==========================================================================
 // DOM Elements
 // ==========================================================================
 const els = {
@@ -344,7 +365,7 @@ function handleAddSandbox(prodName, instanceInput, aliasInput) {
 }
 
 function removeProdOrg(prodName) {
-    showConfirmModal(`Remove Production Org <strong>${prodName}</strong> and all its tracked sandboxes?`, () => {
+    showConfirmModal(`Remove Production Org <strong>${escapeHtml(prodName)}</strong> and all its tracked sandboxes?`, () => {
         trackedConfig = trackedConfig.filter(g => g.prod !== prodName);
         saveInstances();
         renderSidebarList();
@@ -378,7 +399,7 @@ function removeExternalService(svcId) {
     const svc = trackedExternalConfig.find(s => s.id === svcId);
     if (!svc) return;
 
-    showConfirmModal(`Remove <strong>${svc.name}</strong> from tracking?`, () => {
+    showConfirmModal(`Remove <strong>${escapeHtml(svc.name)}</strong> from tracking?`, () => {
         trackedExternalConfig = trackedExternalConfig.filter(s => s.id !== svcId);
         saveExternalInstances();
         renderExternalList();
@@ -390,7 +411,7 @@ function removeSandbox(prodName, sandboxObj) {
     const group = trackedConfig.find(g => g.prod === prodName);
     if (!group) return;
     
-    showConfirmModal(`Remove Sandbox <strong>${sandboxObj.name}</strong> from ${prodName}?`, () => {
+    showConfirmModal(`Remove Sandbox <strong>${escapeHtml(sandboxObj.name)}</strong> from ${escapeHtml(prodName)}?`, () => {
         // Match exactly the object reference to allow duplicates
         group.sandboxes = group.sandboxes.filter(s => s !== sandboxObj);
         saveInstances();
@@ -424,7 +445,7 @@ function showConfirmModal(messageHtml, onConfirmCallback) {
 
 function enableEditMode(container, currentName, onSaveCallback) {
     const originalHtml = container.innerHTML;
-    container.innerHTML = `<form class="edit-form" style="display:flex; gap:0.2rem;"><input type="text" class="edit-input" value="${currentName}" autofocus><button type="submit" class="btn-edit" title="Save"><i class="ph ph-check"></i></button></form>`;
+    container.innerHTML = `<form class="edit-form" style="display:flex; gap:0.2rem;"><input type="text" class="edit-input" value="${escapeHtml(currentName)}" autofocus><button type="submit" class="btn-edit" title="Save"><i class="ph ph-check"></i></button></form>`;
     
     const form = container.querySelector('.edit-form');
     const input = container.querySelector('.edit-input');
@@ -513,8 +534,8 @@ function populateOrgFilters() {
             const isChecked = shownList.includes(srv);
             html += `
                 <label class="filter-item">
-                    <input type="checkbox" value="${srv}" ${isChecked ? 'checked' : ''} onchange="toggleOrgServiceFilter('${group.prod}', '${srv}', this.checked)">
-                    ${srv}
+                    <input type="checkbox" value="${escapeHtml(srv)}" ${isChecked ? 'checked' : ''} onchange="toggleOrgServiceFilter('${escapeForJsString(group.prod)}', '${escapeForJsString(srv)}', this.checked)">
+                    ${escapeHtml(srv)}
                 </label>
             `;
         });
@@ -564,7 +585,7 @@ function renderSidebarList() {
         titleContainer.style.fontWeight = '600';
         titleContainer.style.flexGrow = '1';
         
-        const displayNameHtml = group.prodName !== group.prod ? `${group.prodName} <span style="font-size:0.7em; color:var(--text-muted); font-weight:normal;">(${group.prod})</span>` : group.prod;
+        const displayNameHtml = group.prodName !== group.prod ? `${escapeHtml(group.prodName)} <span style="font-size:0.7em; color:var(--text-muted); font-weight:normal;">(${escapeHtml(group.prod)})</span>` : escapeHtml(group.prod);
         
         titleContainer.innerHTML = `<i class="ph ph-hard-drives"></i> <span class="name-text">${displayNameHtml}</span>`;
         
@@ -605,7 +626,7 @@ function renderSidebarList() {
                 sbTitleContainer.className = 'instance-name';
                 sbTitleContainer.style.flexGrow = '1';
                 
-                const sbDisplayNameHtml = sandbox.name !== sandbox.id ? `${sandbox.name} <span style="font-size:0.75em; color:var(--text-muted);">(${sandbox.id})</span>` : sandbox.id;
+                const sbDisplayNameHtml = sandbox.name !== sandbox.id ? `${escapeHtml(sandbox.name)} <span style="font-size:0.75em; color:var(--text-muted);">(${escapeHtml(sandbox.id)})</span>` : escapeHtml(sandbox.id);
                 
                 sbTitleContainer.innerHTML = `<i class="ph ph-arrow-elbow-down-right" style="color: var(--text-muted)"></i> <span class="name-text">${sbDisplayNameHtml}</span>`;
                 
@@ -694,7 +715,7 @@ function renderExternalList() {
         if (svc.type === 'atlassian') iconHtml = '<i class="ph ph-kanban"></i>';
         else if (svc.type === 'azure') iconHtml = '<i class="ph ph-microsoft-logo"></i>';
 
-        titleContainer.innerHTML = `${iconHtml} <span class="name-text">${svc.name}</span>`;
+        titleContainer.innerHTML = `${iconHtml} <span class="name-text">${escapeHtml(svc.name)}</span>`;
         
         const removeBtn = document.createElement('button');
         removeBtn.className = 'btn-remove';
@@ -735,7 +756,7 @@ function populateAzureRegionFilters() {
             const isChecked = shownList.length === 0 || shownList.includes(reg.id);
             html += `
                 <label class="filter-item">
-                    <input type="checkbox" value="${reg.id}" ${isChecked ? 'checked' : ''} onchange="toggleAzureRegionFilter('${svc.id}', '${reg.id}', this.checked)">
+                    <input type="checkbox" value="${escapeHtml(reg.id)}" ${isChecked ? 'checked' : ''} onchange="toggleAzureRegionFilter('${escapeForJsString(svc.id)}', '${escapeForJsString(reg.id)}', this.checked)">
                     ${reg.name} (${reg.id})
                 </label>
             `;
@@ -838,7 +859,7 @@ async function fetchAllStatuses(options = {}) {
             const skeletonHtml = `
                 <div class="org-group">
                     <div class="org-group-header">
-                        <h2>${group.prodName}</h2>
+                        <h2>${escapeHtml(group.prodName)}</h2>
                         <span class="org-group-badge">Loading...</span>
                     </div>
                     <div class="dashboard-grid">
@@ -923,8 +944,8 @@ function renderDashboardDOM() {
 
             // Display Title
             groupHeader.innerHTML = `
-                <h2>${group.prodName}</h2>
-                <span class="org-group-badge">${badgeText}</span>
+                <h2>${escapeHtml(group.prodName)}</h2>
+                <span class="org-group-badge">${escapeHtml(badgeText)}</span>
             `;
             groupWrapper.appendChild(groupHeader);
             
@@ -1300,7 +1321,7 @@ function buildStatusCard(result, isProd, displayName, parentProdId, isExternal =
     if (isExternal) badgeLabel = `<span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3)">GLOBAL SERVICE</span>`;
     
     // Subtitle now shows the actual ID so the big header can use the alias
-    const subtitleText = (result.instance !== displayName && !isExternal) ? `Instance: ${result.instance}` : '';
+    const subtitleText = (result.instance !== displayName && !isExternal) ? `Instance: ${escapeHtml(result.instance)}` : '';
     let iconClass = isProd ? 'ph-server' : 'ph-hard-drive';
     if (isExternal) iconClass = 'ph-globe';
     
@@ -1312,7 +1333,7 @@ function buildStatusCard(result, isProd, displayName, parentProdId, isExternal =
                 <div>
                     <div class="instance-id">
                         <i class="ph ${iconClass}"></i>
-                        ${displayName}
+                        ${escapeHtml(displayName)}
                         ${isExternal && provider && provider.statusPageUrl ? `<a href="${provider.statusPageUrl}" target="_blank" class="trust-link" title="View status page"><i class="ph ph-arrow-square-out"></i></a>` : ''}
                     </div>
                     ${badgeLabel}
@@ -1341,9 +1362,9 @@ function buildStatusCard(result, isProd, displayName, parentProdId, isExternal =
         const activeIncident = incidentsToDisplay[0];
         
         const isResolved = activeIncident.status === 'Resolved';
-        let previewSubject = activeIncident.externalId ? `Incident ID: ${activeIncident.externalId}` : 'Service Issues Detected';
+        let previewSubject = activeIncident.externalId ? `Incident ID: ${escapeHtml(activeIncident.externalId)}` : 'Service Issues Detected';
         if (activeIncident.serviceKeys && activeIncident.serviceKeys.length > 0) {
-             previewSubject += ` (${activeIncident.serviceKeys.join(', ')})`;
+             previewSubject += ` (${escapeHtml(activeIncident.serviceKeys.join(', '))})`;
         }
         
         // Build timeline
@@ -1352,25 +1373,28 @@ function buildStatusCard(result, isProd, displayName, parentProdId, isExternal =
             const sortedTimeline = [...activeIncident.timeline].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
             timelineHtml = sortedTimeline.map(item => {
                 const itemDate = new Date(item.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const safeContent = item.content ? escapeHtml(item.content).replace(/\n/g, '<br>') : '';
                 return `
                     <div style="margin-bottom: 0.8rem; border-left: 2px solid var(--border-glass); padding-left: 0.8rem;">
-                        <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">${item.title} <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-left: 0.3rem;">${itemDate}</span></div>
-                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.2rem;">${item.content ? item.content.replace(/\\n/g, '<br>') : ''}</div>
+                        <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">${escapeHtml(item.title)} <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-left: 0.3rem;">${itemDate}</span></div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.2rem;">${safeContent}</div>
                     </div>
                 `;
             }).join('');
         } else if (activeIncident.IncidentEvents && activeIncident.IncidentEvents.length > 0) {
             timelineHtml = activeIncident.IncidentEvents.map(ev => {
                 const evDate = new Date(ev.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const safeMessage = ev.message ? escapeHtml(ev.message).replace(/\n/g, '<br>') : '';
                 return `
                     <div style="margin-bottom: 0.8rem; border-left: 2px solid var(--border-glass); padding-left: 0.8rem;">
-                        <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);"><span style="text-transform: capitalize;">${ev.type}</span> <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-left: 0.3rem;">${evDate}</span></div>
-                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.2rem;">${ev.message ? ev.message.replace(/\\n/g, '<br>') : ''}</div>
+                        <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);"><span style="text-transform: capitalize;">${escapeHtml(ev.type)}</span> <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-left: 0.3rem;">${evDate}</span></div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.2rem;">${safeMessage}</div>
                     </div>
                 `;
             }).join('');
         } else {
-            timelineHtml = `<div>${activeIncident.message ? activeIncident.message.replace(/\\n/g, '<br>') : 'No additional details provided at this time.'}</div>`;
+            const safeMsg = activeIncident.message ? escapeHtml(activeIncident.message).replace(/\n/g, '<br>') : 'No additional details provided at this time.';
+            timelineHtml = `<div>${safeMsg}</div>`;
         }
 
         const iconClass = isResolved ? 'ph-check-circle' : 'ph-warning-circle';
@@ -1380,8 +1404,8 @@ function buildStatusCard(result, isProd, displayName, parentProdId, isExternal =
         const incidentLink = getIncidentDetailLink(activeIncident.id, provider, result);
         const incidentLinkSection = incidentLink ? `
             <div style="font-size: 0.85rem; padding-top: 0.5rem; border-top: 1px dashed var(--border-glass);">
-                <a href="${incidentLink.url}" target="_blank" class="trust-link" style="color: var(--accent-blue); font-weight: 500; display: inline-flex; gap: 0.3rem;" title="${incidentLink.title}" onclick="event.stopPropagation();">
-                    ${incidentLink.label} <i class="ph ph-arrow-square-out"></i>
+                <a href="${escapeHtml(incidentLink.url)}" target="_blank" class="trust-link" style="color: var(--accent-blue); font-weight: 500; display: inline-flex; gap: 0.3rem;" title="${escapeHtml(incidentLink.title)}" onclick="event.stopPropagation();">
+                    ${escapeHtml(incidentLink.label)} <i class="ph ph-arrow-square-out"></i>
                 </a>
             </div>
         ` : '';
@@ -1439,7 +1463,7 @@ function buildStatusCard(result, isProd, displayName, parentProdId, isExternal =
                     if (statusInfo.raw === 'INCIDENT' || statusInfo.raw === 'MAJOR_INCIDENT_CORE') dotClass = 'service-dot down';
                 }
                 
-                return `<div class="service-pill ${s.isCore ? 'core' : ''}"><div class="${dotClass}"></div>${s.key}</div>`;
+                return `<div class="service-pill ${s.isCore ? 'core' : ''}"><div class="${dotClass}"></div>${escapeHtml(s.key)}</div>`;
             });
             
             servicesHtml = `<div class="sub-services">${pillNodes.join('')}</div>`;
@@ -1455,7 +1479,7 @@ function buildStatusCard(result, isProd, displayName, parentProdId, isExternal =
             const compStatus = (c.status || 'operational').toLowerCase();
             if (compStatus === 'degraded_performance') dotClass = 'service-dot warn';
             else if (compStatus === 'partial_outage' || compStatus === 'major_outage') dotClass = 'service-dot down';
-            return `<div class="service-pill"><div class="${dotClass}"></div>${c.key}</div>`;
+            return `<div class="service-pill"><div class="${dotClass}"></div>${escapeHtml(c.key)}</div>`;
         });
         componentsHtml = `<div class="sub-services"><div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem;">Components</div>${pillNodes.join('')}</div>`;
     }
@@ -1480,11 +1504,11 @@ function buildStatusCard(result, isProd, displayName, parentProdId, isExternal =
             });
         });
         pills.sort((a, b) => a.region.localeCompare(b.region) || a.service.localeCompare(b.service));
-        const pillNodes = pills.map(p => `<div class="service-pill" title="${p.name} • ${p.service}"><div class="${p.dotClass}"></div>${p.region} ${p.service}</div>`);
+        const pillNodes = pills.map(p => `<div class="service-pill" title="${escapeHtml(p.name)} • ${escapeHtml(p.service)}"><div class="${p.dotClass}"></div>${escapeHtml(p.region)} ${escapeHtml(p.service)}</div>`);
         azureServicesHtml = `<div class="sub-services"><div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem;">Components</div>${pillNodes.join('')}</div>`;
     }
 
-    const locText = data.location ? `• ${data.location}` : '';
+    const locText = data.location ? `• ${escapeHtml(data.location)}` : '';
     const statusPageLink = getStatusPageLink(result.instance, provider, isExternal);
 
     card.className = `status-card glass-panel ${statusInfo.class}`;
@@ -1493,8 +1517,8 @@ function buildStatusCard(result, isProd, displayName, parentProdId, isExternal =
             <div>
                 <div class="instance-id">
                     <i class="ph ${isProd ? 'ph-server' : 'ph-hard-drive'}"></i>
-                    ${displayName}
-                    <a href="${statusPageLink.url}" target="_blank" class="trust-link" title="${statusPageLink.title}">
+                    ${escapeHtml(displayName)}
+                    <a href="${escapeHtml(statusPageLink.url)}" target="_blank" class="trust-link" title="${escapeHtml(statusPageLink.title)}">
                         <i class="ph ph-arrow-square-out"></i>
                     </a>
                 </div>
@@ -1512,11 +1536,11 @@ function buildStatusCard(result, isProd, displayName, parentProdId, isExternal =
         <div class="card-details">
             <div class="detail-row">
                 <span class="detail-label"><i class="ph ph-activity"></i> Status</span>
-                <span class="detail-value" style="color: var(--${statusInfo.class.replace('status-', 'status-')})">${statusInfo.label}</span>
+                <span class="detail-value" style="color: var(--${statusInfo.class})">${statusInfo.label}</span>
             </div>
-            ${data.statusDescription ? `<div class="detail-row"><span class="detail-label"></span><span class="detail-value" style="font-size: 0.85rem; color: var(--text-secondary);">${data.statusDescription}</span></div>` : ''}
+            ${data.statusDescription ? `<div class="detail-row"><span class="detail-label"></span><span class="detail-value" style="font-size: 0.85rem; color: var(--text-secondary);">${escapeHtml(data.statusDescription)}</span></div>` : ''}
             
-            ${!isExternal ? `<div class="release-version">Release: ${data.releaseVersion || 'N/A'}</div>` : ''}
+            ${!isExternal ? `<div class="release-version">Release: ${escapeHtml(data.releaseVersion || 'N/A')}</div>` : ''}
             
             ${maintenanceHtml}
             ${incidentHtml}
@@ -1526,17 +1550,6 @@ function buildStatusCard(result, isProd, displayName, parentProdId, isExternal =
         </div>
     `;
     return card;
-}
-
-function renderEmptyState() {
-    els.statusGrid.classList.add('dashboard-grid');
-    els.statusGrid.innerHTML = `
-        <div class="empty-state">
-            <i class="ph ph-magnifying-glass-plus"></i>
-            <h3>No Orgs Tracked</h3>
-            <p>Add a Salesforce Organization to begin monitoring.</p>
-        </div>
-    `;
 }
 
 // ==========================================================================
