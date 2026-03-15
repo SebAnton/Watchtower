@@ -46,7 +46,20 @@ You just need a static local server to avoid CORS/file protocol restrictions in 
 ## 📁 Repository Structure
 
 - `index.html`: The main dashboard UI and document structure.
-- `app.js`: Core application logic (API requests, state management, UI rendering, local storage, external service integration).
+- `js/`: Modular JavaScript application (load order matters):
+  - `utils.js` — HTML/JS escaping utilities
+  - `constants.js` — Storage keys, default config, external service definitions
+  - `state.js` — Mutable application state
+  - `dom.js` — Cached DOM element references
+  - `status.js` — Status mapping, incident filtering, link helpers
+  - `api.js` — API fetching and data normalization
+  - `storage.js` — LocalStorage persistence and migration
+  - `config.js` — Export/import, app title, refresh interval
+  - `modal.js` — Confirm modal UI
+  - `sidebar.js` — Sidebar org list, external services, filters
+  - `dashboard.js` — Status grid and card rendering
+  - `events.js` — Event listeners and handlers
+  - `app.js` — Main orchestration and data fetching
 - `styles.css`: The complete design system and glassmorphism UI components.
 - `tests.html`: A custom, lightweight, zero-dependency test suite for the core JavaScript logic.
 
