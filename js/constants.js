@@ -6,7 +6,7 @@
 
     const STORAGE_KEY = 'sf_status_instances';
     const DEFAULT_CONFIG = [
-        { prod: 'NA211', prodName: 'NA211', sandboxes: [{ id: 'CS71', name: 'CS71' }], shownServices: [] }
+        { id: 'org_default', prod: 'NA211', prodName: 'NA211', sandboxes: [{ id: 'CS71', name: 'CS71' }], shownServices: [] }
     ];
     const EXTERNAL_STORAGE_KEY = 'sf_status_external_instances';
     const APP_SETTINGS_KEY = 'sf_status_app_settings';

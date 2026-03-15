@@ -34,7 +34,7 @@
                 }
             });
 
-            const container = document.getElementById(`filters-${group.prod}`);
+            const container = document.getElementById(`filters-${group.id}`);
             if (!container) return;
 
             if (serviceSet.size === 0) {
@@ -49,7 +49,7 @@
                 const isChecked = shownList.includes(srv);
                 html += `
                     <label class="filter-item">
-                        <input type="checkbox" value="${escapeHtml(srv)}" ${isChecked ? 'checked' : ''} onchange="Watchtower.sidebar.toggleOrgServiceFilter('${escapeForJsString(group.prod)}', '${escapeForJsString(srv)}', this.checked)">
+                        <input type="checkbox" value="${escapeHtml(srv)}" ${isChecked ? 'checked' : ''} onchange="Watchtower.sidebar.toggleOrgServiceFilter('${escapeForJsString(group.id)}', '${escapeForJsString(srv)}', this.checked)">
                         ${escapeHtml(srv)}
                     </label>
                 `;
@@ -58,8 +58,8 @@
         });
     }
 
-    function toggleOrgServiceFilter(prodId, serviceKey, isChecked) {
-        const group = state.trackedConfig.find(g => g.prod === prodId);
+    function toggleOrgServiceFilter(orgId, serviceKey, isChecked) {
+        const group = state.trackedConfig.find(g => g.id === orgId);
         if (!group) return;
         if (!group.shownServices) group.shownServices = [];
 
@@ -170,7 +170,7 @@
             header.appendChild(titleContainer);
             header.appendChild(actionsDiv);
 
-            header.querySelector('[data-action="remove-prod"]').addEventListener('click', () => Watchtower.events.removeProdOrg(group.prod));
+            header.querySelector('[data-action="remove-prod"]').addEventListener('click', () => Watchtower.events.removeProdOrg(group.id));
             header.querySelector('[data-action="edit-prod"]').addEventListener('click', () => {
                 enableEditMode(titleContainer, group.prodName, (newName) => {
                     group.prodName = newName;
@@ -202,7 +202,7 @@
                     `;
                     item.appendChild(sbTitleContainer);
                     item.appendChild(sbActionsDiv);
-                    item.querySelector('[data-action="remove-sb"]').addEventListener('click', () => Watchtower.events.removeSandbox(group.prod, sandbox));
+                    item.querySelector('[data-action="remove-sb"]').addEventListener('click', () => Watchtower.events.removeSandbox(group.id, sandbox));
                     item.querySelector('[data-action="edit-sb"]').addEventListener('click', () => {
                         enableEditMode(sbTitleContainer, sandbox.name, (newName) => {
                             sandbox.name = newName;
@@ -229,7 +229,7 @@
             `;
             addSbForm.addEventListener('submit', (e) => {
                 e.preventDefault();
-                Watchtower.events.handleAddSandbox(group.prod, addSbForm.querySelector('.add-sandbox-input'), addSbForm.querySelector('.add-sandbox-alias'));
+                Watchtower.events.handleAddSandbox(group.id, addSbForm.querySelector('.add-sandbox-input'), addSbForm.querySelector('.add-sandbox-alias'));
             });
             section.appendChild(addSbForm);
 
@@ -237,7 +237,7 @@
             filtersDetails.className = 'org-filters-details';
             filtersDetails.innerHTML = `
                 <summary><i class="ph ph-faders"></i> Filter Sub-Services</summary>
-                <div id="filters-${group.prod}" class="filter-list">
+                <div id="filters-${group.id}" class="filter-list">
                     <div style="font-size: 0.75rem; color: var(--text-muted); padding: 0.3rem 0;">Waiting for data...</div>
                 </div>
             `;

@@ -24,9 +24,10 @@
                         const sandboxes = parsed.filter(i => i.startsWith('CS') || i.startsWith('TEST')).map(sb => ({ id: sb, name: sb }));
 
                         if (prods.length === 0) {
-                            state.trackedConfig = [{ prod: 'LEGACY_PROD', prodName: 'LEGACY_PROD', sandboxes }];
+                            state.trackedConfig = [{ id: Watchtower.utils.generateOrgId(), prod: 'LEGACY_PROD', prodName: 'LEGACY_PROD', sandboxes }];
                         } else {
                             state.trackedConfig = prods.map((p, idx) => ({
+                                id: Watchtower.utils.generateOrgId(),
                                 prod: p,
                                 prodName: p,
                                 sandboxes: idx === 0 ? sandboxes : []
@@ -35,6 +36,7 @@
                         saveInstances();
                     } else if (typeof parsed[0] === 'object' && parsed[0].prod && (!parsed[0].prodName || (parsed[0].sandboxes.length > 0 && typeof parsed[0].sandboxes[0] === 'string'))) {
                         state.trackedConfig = parsed.map(g => ({
+                            id: g.id || Watchtower.utils.generateOrgId(),
                             prod: g.prod,
                             prodName: g.prodName || g.prod,
                             sandboxes: (g.sandboxes || []).map(sb => typeof sb === 'string' ? { id: sb, name: sb } : sb)

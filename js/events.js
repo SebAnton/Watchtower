@@ -25,8 +25,9 @@
         const aliasVal = els.newAlias.value.trim();
 
         if (!val) return;
-        if (state.trackedConfig.some(g => g.prod === val)) {
-            showError('Production Org already tracked.');
+        const finalAlias = aliasVal ? aliasVal : val;
+        if (state.trackedConfig.some(g => g.prod === val && g.prodName === finalAlias)) {
+            showError('Production Org with this instance and alias already tracked.');
             return;
         }
         if (!/^[A-Z0-9]{2,15}$/.test(val)) {
@@ -35,8 +36,13 @@
         }
 
         hideError();
-        const finalAlias = aliasVal ? aliasVal : val;
-        state.trackedConfig.push({ prod: val, prodName: finalAlias, sandboxes: [], shownServices: [] });
+        state.trackedConfig.push({
+            id: Watchtower.utils.generateOrgId(),
+            prod: val,
+            prodName: finalAlias,
+            sandboxes: [],
+            shownServices: []
+        });
         Watchtower.storage.saveInstances();
         els.newInput.value = '';
         els.newAlias.value = '';
@@ -44,11 +50,11 @@
         Watchtower.app.fetchAllStatuses();
     }
 
-    function handleAddSandbox(prodName, instanceInput, aliasInput) {
+    function handleAddSandbox(orgId, instanceInput, aliasInput) {
         const val = instanceInput.value.trim().toUpperCase();
         if (!val) return;
 
-        const group = state.trackedConfig.find(g => g.prod === prodName);
+        const group = state.trackedConfig.find(g => g.id === orgId);
         if (!group) return;
 
         const aliasVal = aliasInput ? aliasInput.value.trim() : '';
@@ -71,9 +77,11 @@
         Watchtower.app.fetchAllStatuses();
     }
 
-    function removeProdOrg(prodName) {
-        Watchtower.modal.showConfirmModal(`Remove Production Org <strong>${escapeHtml(prodName)}</strong> and all its tracked sandboxes?`, () => {
-            state.trackedConfig = state.trackedConfig.filter(g => g.prod !== prodName);
+    function removeProdOrg(orgId) {
+        const group = state.trackedConfig.find(g => g.id === orgId);
+        if (!group) return;
+        Watchtower.modal.showConfirmModal(`Remove Production Org <strong>${escapeHtml(group.prodName)}</strong> and all its tracked sandboxes?`, () => {
+            state.trackedConfig = state.trackedConfig.filter(g => g.id !== orgId);
             Watchtower.storage.saveInstances();
             Watchtower.sidebar.renderSidebarList();
             Watchtower.app.fetchAllStatuses();
@@ -114,11 +122,11 @@
         });
     }
 
-    function removeSandbox(prodName, sandboxObj) {
-        const group = state.trackedConfig.find(g => g.prod === prodName);
+    function removeSandbox(orgId, sandboxObj) {
+        const group = state.trackedConfig.find(g => g.id === orgId);
         if (!group) return;
 
-        Watchtower.modal.showConfirmModal(`Remove Sandbox <strong>${escapeHtml(sandboxObj.name)}</strong> from ${escapeHtml(prodName)}?`, () => {
+        Watchtower.modal.showConfirmModal(`Remove Sandbox <strong>${escapeHtml(sandboxObj.name)}</strong> from ${escapeHtml(group.prodName)}?`, () => {
             group.sandboxes = group.sandboxes.filter(s => s !== sandboxObj);
             Watchtower.storage.saveInstances();
             Watchtower.sidebar.renderSidebarList();

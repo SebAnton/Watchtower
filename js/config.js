@@ -45,7 +45,9 @@
                 const parsed = JSON.parse(e.target.result);
                 if (parsed && typeof parsed === 'object') {
                     if (parsed.trackedConfig && Array.isArray(parsed.trackedConfig)) {
-                        parsed.trackedConfig.forEach(g => { if (!g.shownServices) g.shownServices = []; });
+                        parsed.trackedConfig.forEach(g => {
+                            if (!g.shownServices) g.shownServices = [];
+                        });
                         state.trackedConfig = parsed.trackedConfig;
                         Watchtower.storage.saveInstances();
                     } else {

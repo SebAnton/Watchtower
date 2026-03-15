@@ -29,7 +29,7 @@
         updateTimestamp(true);
     }
 
-    function buildStatusCard(result, isProd, displayName, parentProdId, isExternal = false, provider = null) {
+    function buildStatusCard(result, isProd, displayName, parentOrgId, isExternal = false, provider = null) {
         const card = document.createElement('div');
 
         let badgeLabel = `<span class="badge badge-sandbox">SANDBOX</span>`;
@@ -148,7 +148,7 @@
 
         let servicesHtml = '';
         if (data.Services && data.Services.length > 0) {
-            const parentGroup = state.trackedConfig.find(g => g.prod === parentProdId);
+            const parentGroup = parentOrgId ? state.trackedConfig.find(g => g.id === parentOrgId) : null;
             const shownList = parentGroup ? (parentGroup.shownServices || []) : [];
             const visibleServices = data.Services.filter(s => shownList.includes(s.key));
 
@@ -420,16 +420,16 @@
             const innerGrid = document.createElement('div');
             innerGrid.className = 'dashboard-grid';
             if (prodResult) {
-                innerGrid.appendChild(buildStatusCard(prodResult, true, group.prodName, group.prod));
+                innerGrid.appendChild(buildStatusCard(prodResult, true, group.prodName, group.id));
             } else {
-                innerGrid.appendChild(buildStatusCard({ success: false, instance: group.prod }, true, group.prodName, group.prod));
+                innerGrid.appendChild(buildStatusCard({ success: false, instance: group.prod }, true, group.prodName, group.id));
             }
             group.sandboxes.forEach(sb => {
                 const sbResult = state.fetchCache[sb.id];
                 if (sbResult) {
-                    innerGrid.appendChild(buildStatusCard(sbResult, false, sb.name, group.prod));
+                    innerGrid.appendChild(buildStatusCard(sbResult, false, sb.name, group.id));
                 } else {
-                    innerGrid.appendChild(buildStatusCard({ success: false, instance: sb.id }, false, sb.name, group.prod));
+                    innerGrid.appendChild(buildStatusCard({ success: false, instance: sb.id }, false, sb.name, group.id));
                 }
             });
             groupWrapper.appendChild(innerGrid);

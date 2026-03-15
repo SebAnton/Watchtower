@@ -16,12 +16,17 @@
             .replace(/'/g, '&#39;');
     }
 
-    /** Escape string for safe use inside a single-quoted JavaScript string in HTML. */
-    function escapeForJsString(str) {
-        if (str == null) return '';
-        return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    }
+/** Escape string for safe use inside a single-quoted JavaScript string in HTML. */
+function escapeForJsString(str) {
+    if (str == null) return '';
+    return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
 
-    global.Watchtower = global.Watchtower || {};
-    global.Watchtower.utils = { escapeHtml, escapeForJsString };
+/** Generate a unique id for an org group. */
+function generateOrgId() {
+    return 'org_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+}
+
+global.Watchtower = global.Watchtower || {};
+global.Watchtower.utils = { escapeHtml, escapeForJsString, generateOrgId };
 })(typeof window !== 'undefined' ? window : this);
