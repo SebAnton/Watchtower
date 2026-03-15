@@ -16,9 +16,9 @@ const EXTERNAL_STORAGE_KEY = 'sf_status_external_instances';
 let trackedExternalConfig = [];
 
 const SUPPORTED_EXTERNAL_SERVICES = [
-    { id: 'jira', name: 'Jira Software', type: 'atlassian', api: 'https://jira-software.status.atlassian.com/api/v2/summary.json' },
-    { id: 'bitbucket', name: 'Atlassian Bitbucket', type: 'atlassian', api: 'https://bitbucket.status.atlassian.com/api/v2/summary.json' },
-    { id: 'azure', name: 'Azure DevOps', type: 'azure', api: 'https://status.dev.azure.com/_apis/status/health?api-version=6.0-preview.1' }
+    { id: 'jira', name: 'Jira Software', type: 'atlassian', api: 'https://jira-software.status.atlassian.com/api/v2/summary.json', statusPageUrl: 'https://jira-software.status.atlassian.com/', incidentUrlTemplate: 'https://jira-software.status.atlassian.com/incidents/{id}' },
+    { id: 'bitbucket', name: 'Atlassian Bitbucket', type: 'atlassian', api: 'https://bitbucket.status.atlassian.com/api/v2/summary.json', statusPageUrl: 'https://bitbucket.status.atlassian.com/', incidentUrlTemplate: 'https://bitbucket.status.atlassian.com/incidents/{id}' },
+    { id: 'azure', name: 'Azure DevOps', type: 'azure', api: 'https://status.dev.azure.com/_apis/status/health?api-version=6.0-preview.1', statusPageUrl: 'https://status.dev.azure.com/', incidentUrlTemplate: null }
 ];
 
 // ==========================================================================
@@ -787,10 +787,9 @@ function renderDashboardDOM() {
         trackedExternalConfig.forEach(svc => {
             const sbResult = fetchCache[svc.id];
             if (sbResult) {
-                // We use buildStatusCard but treat it as a top-level external service
-                extInnerGrid.appendChild(buildStatusCard(sbResult, false, svc.name, svc.id, true));
+                extInnerGrid.appendChild(buildStatusCard(sbResult, false, svc.name, svc.id, true, svc));
             } else {
-                extInnerGrid.appendChild(buildStatusCard({success: false, instance: svc.id}, false, svc.name, svc.id, true));
+                extInnerGrid.appendChild(buildStatusCard({ success: false, instance: svc.id, provider: svc }, false, svc.name, svc.id, true, svc));
             }
         });
         
@@ -811,7 +810,8 @@ function updateTimestamp() {
 // ==========================================================================
 function exportConfig() {
     const backup = {
-        trackedConfig: trackedConfig
+        trackedConfig: trackedConfig,
+        trackedExternalConfig: trackedExternalConfig
     };
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backup, null, 2));
     const titleDate = new Date().toISOString().split('T')[0];
@@ -832,7 +832,6 @@ function importConfig(event) {
             const parsed = JSON.parse(e.target.result);
             if (parsed && typeof parsed === 'object') {
                 if (parsed.trackedConfig && Array.isArray(parsed.trackedConfig)) {
-                     // Ensure every org has shownServices
                      parsed.trackedConfig.forEach(g => {
                          if (!g.shownServices) g.shownServices = [];
                      });
@@ -841,13 +840,18 @@ function importConfig(event) {
                 } else {
                      throw new Error('Missing or invalid trackedConfig array');
                 }
+                if (parsed.trackedExternalConfig && Array.isArray(parsed.trackedExternalConfig)) {
+                     trackedExternalConfig = parsed.trackedExternalConfig
+                         .filter(s => SUPPORTED_EXTERNAL_SERVICES.some(def => def.id === s.id))
+                         .map(s => SUPPORTED_EXTERNAL_SERVICES.find(def => def.id === s.id) || s);
+                     saveExternalInstances();
+                }
                 
-                // Clear state UI and fetch new configurations
                 els.inputError.classList.add('hidden');
                 renderSidebarList();
-                fetchAllStatuses(); // Refetches and triggers renderDashboardDOM
+                renderExternalList();
+                fetchAllStatuses();
                 
-                // Show generic success
                 alert('Configuration imported successfully!');
             }
         } catch (err) {
@@ -882,10 +886,10 @@ async function fetchExternalInstanceData(svc) {
         if (svc.type === 'atlassian') normalizedData = normalizeAtlassianData(rawData);
         else if (svc.type === 'azure') normalizedData = normalizeAzureData(rawData);
         
-        return { success: true, instance: svc.id, data: normalizedData };
+        return { success: true, instance: svc.id, data: normalizedData, provider: svc };
     } catch(e) {
         console.error(`External fetch failed for ${svc.id}:`, e);
-        return { success: false, instance: svc.id, error: e.message };
+        return { success: false, instance: svc.id, error: e.message, provider: svc };
     }
 }
 
@@ -903,9 +907,7 @@ function normalizeAtlassianData(rawData) {
     let mappedIncidents = [];
     if (rawData.incidents && rawData.incidents.length > 0) {
         mappedIncidents = rawData.incidents.map(inc => {
-            // Atlassian statuses: investigating, identified, monitoring, resolved, postmortem
             const isResolved = (inc.status === 'resolved' || inc.status === 'postmortem');
-            
             let mappedTimeline = [];
             if (inc.incident_updates) {
                 mappedTimeline = inc.incident_updates.map(upd => ({
@@ -914,34 +916,55 @@ function normalizeAtlassianData(rawData) {
                     content: upd.body
                 }));
             }
-            
             return {
                 id: inc.id,
                 status: isResolved ? 'Resolved' : 'Active',
                 externalId: inc.id,
                 message: inc.name,
                 updatedAt: inc.updated_at,
-                timeline: mappedTimeline
+                timeline: mappedTimeline,
+                impact: inc.impact
             };
         });
     }
+
+    // Map components to Services-like format: { key, status, isCore }
+    // Atlassian status: operational, degraded_performance, partial_outage, major_outage
+    let Components = [];
+    if (rawData.components && rawData.components.length > 0) {
+        Components = rawData.components.map(c => ({
+            key: c.name,
+            status: (c.status || 'operational').toLowerCase(),
+            isCore: false
+        }));
+    }
+
+    // Map scheduled_maintenances to Maintenances format
+    let Maintenances = [];
+    if (rawData.scheduled_maintenances && rawData.scheduled_maintenances.length > 0) {
+        Maintenances = rawData.scheduled_maintenances.map(m => ({
+            startDate: m.scheduled_for || m.scheduled_until || new Date().toISOString(),
+            name: m.name,
+            status: m.status
+        }));
+    }
+
+    const statusDescription = rawData.status && rawData.status.description ? rawData.status.description : null;
     
-    return { status: mappedStatus, Incidents: mappedIncidents };
+    return { status: mappedStatus, Incidents: mappedIncidents, Components, Maintenances, statusDescription };
 }
 
 function normalizeAzureData(rawData) {
-    // Azure rawData format: { status: { health: 'healthy|degraded|unhealthy', message: '' } }
+    // Azure rawData format: { status: { health, message }, services: [{ id, geographies: [{ id, name, health }] }] }
     let mappedStatus = 'UNKNOWN';
     const health = rawData.status && rawData.status.health ? rawData.status.health.toLowerCase() : 'healthy';
 
     if (health === 'healthy') mappedStatus = 'OK';
-    else if (health === 'degraded') mappedStatus = 'DEGRADATION';
+    else if (health === 'degraded' || health === 'advisory') mappedStatus = 'DEGRADATION';
     else if (health === 'unhealthy') mappedStatus = 'INCIDENT';
     
     let mappedIncidents = [];
-    // Azure doesn't easily provide an incidents array in this endpoint format without crawling further, 
-    // so we fabricate one if there's a non-healthy state mapping.
-    if (mappedStatus !== 'OK' && rawData.status.message) {
+    if (mappedStatus !== 'OK' && rawData.status && rawData.status.message) {
         mappedIncidents.push({
             id: 'azure_inc_1',
             status: 'Active',
@@ -951,8 +974,21 @@ function normalizeAzureData(rawData) {
             timeline: [{ title: 'Update', createdAt: new Date().toISOString(), content: rawData.status.message }]
         });
     }
+
+    // Map services and geographies for rich display
+    let AzureServices = [];
+    if (rawData.services && rawData.services.length > 0) {
+        AzureServices = rawData.services.map(svc => ({
+            id: svc.id,
+            geographies: (svc.geographies || []).map(g => ({
+                id: g.id,
+                name: g.name || g.id,
+                health: (g.health || 'healthy').toLowerCase()
+            }))
+        }));
+    }
     
-    return { status: mappedStatus, Incidents: mappedIncidents };
+    return { status: mappedStatus, Incidents: mappedIncidents, AzureServices };
 }
 
 function getStatusInfo(statusString) {
@@ -967,6 +1003,28 @@ function getStatusInfo(statusString) {
         case 'MAINTENANCE_NONCORE': return { raw: status, label: 'Warning', class: 'status-warning' };
         default: return { raw: status || 'UNKNOWN', label: 'Unknown', class: 'status-unknown' };
     }
+}
+
+function getIncidentDetailLink(incidentId, provider, result) {
+    if (provider && provider.incidentUrlTemplate) {
+        const url = provider.incidentUrlTemplate.replace('{id}', incidentId);
+        const label = provider.name ? `View full details on ${provider.name}` : 'View full details';
+        return { url, label, title: label };
+    }
+    if (!provider) {
+        return { url: `https://status.salesforce.com/incidents/${incidentId}`, label: 'View full details on Trust', title: 'View exact incident details on Salesforce Trust' };
+    }
+    if (provider.statusPageUrl) {
+        return { url: provider.statusPageUrl, label: `View status page`, title: `View ${provider.name} status` };
+    }
+    return null;
+}
+
+function getStatusPageLink(instance, provider, isExternal) {
+    if (isExternal && provider && provider.statusPageUrl) {
+        return { url: provider.statusPageUrl, title: `View on ${provider.name || 'Status Page'}` };
+    }
+    return { url: `https://status.salesforce.com/instances/${instance}`, title: 'View on Salesforce Trust' };
 }
 
 function filterAndDeduplicateIncidents(incidentsData) {
@@ -997,7 +1055,7 @@ function filterAndDeduplicateIncidents(incidentsData) {
     return uniqueIncidents;
 }
 
-function buildStatusCard(result, isProd, displayName, parentProdId, isExternal = false) {
+function buildStatusCard(result, isProd, displayName, parentProdId, isExternal = false, provider = null) {
     const card = document.createElement('div');
     
     let badgeLabel = `<span class="badge badge-sandbox">SANDBOX</span>`;
@@ -1010,6 +1068,7 @@ function buildStatusCard(result, isProd, displayName, parentProdId, isExternal =
     if (isExternal) iconClass = 'ph-globe';
     
     if (!result.success) {
+        const errStatusLink = getStatusPageLink(result.instance, provider, isExternal);
         card.className = 'status-card glass-panel status-unknown';
         card.innerHTML = `
             <div class="card-header">
@@ -1017,6 +1076,7 @@ function buildStatusCard(result, isProd, displayName, parentProdId, isExternal =
                     <div class="instance-id">
                         <i class="ph ${iconClass}"></i>
                         ${displayName}
+                        ${isExternal && provider && provider.statusPageUrl ? `<a href="${provider.statusPageUrl}" target="_blank" class="trust-link" title="View status page"><i class="ph ph-arrow-square-out"></i></a>` : ''}
                     </div>
                     ${badgeLabel}
                     <span class="region-txt" style="margin-top:0.3rem;">${subtitleText}</span>
@@ -1080,17 +1140,22 @@ function buildStatusCard(result, isProd, displayName, parentProdId, isExternal =
         const colorClass = isResolved ? 'var(--status-ok)' : 'var(--status-warning)';
         const headerText = isResolved ? 'Resolved Incident' : 'Active Incident';
 
+        const incidentLink = getIncidentDetailLink(activeIncident.id, provider, result);
+        const incidentLinkSection = incidentLink ? `
+            <div style="font-size: 0.85rem; padding-top: 0.5rem; border-top: 1px dashed var(--border-glass);">
+                <a href="${incidentLink.url}" target="_blank" class="trust-link" style="color: var(--accent-blue); font-weight: 500; display: inline-flex; gap: 0.3rem;" title="${incidentLink.title}" onclick="event.stopPropagation();">
+                    ${incidentLink.label} <i class="ph ph-arrow-square-out"></i>
+                </a>
+            </div>
+        ` : '';
+
         incidentHtml = `
             <div class="incident-alert" onclick="this.querySelector('.incident-details').classList.toggle('hidden')">
                 <strong><i class="ph ${iconClass}" style="color: ${colorClass};"></i> ${headerText} <i class="ph ph-caret-down" style="font-size:0.8rem; color: var(--text-muted)"></i></strong>
                 <div class="incident-preview">${previewSubject}</div>
                 <div class="incident-details hidden">
                     <div style="margin-bottom: 1rem;">${timelineHtml}</div>
-                    <div style="font-size: 0.85rem; padding-top: 0.5rem; border-top: 1px dashed var(--border-glass);">
-                        <a href="https://status.salesforce.com/incidents/${activeIncident.id}" target="_blank" class="trust-link" style="color: var(--accent-blue); font-weight: 500; display: inline-flex; gap: 0.3rem;" title="View exact incident details on Salesforce Trust" onclick="event.stopPropagation();">
-                            View full details on Trust <i class="ph ph-arrow-square-out"></i>
-                        </a>
-                    </div>
+                    ${incidentLinkSection}
                 </div>
             </div>
         `;
@@ -1114,13 +1179,12 @@ function buildStatusCard(result, isProd, displayName, parentProdId, isExternal =
         }
     }
 
-    // Services
+    // Services (Salesforce)
     let servicesHtml = '';
     if (data.Services && data.Services.length > 0) {
         const parentGroup = trackedConfig.find(g => g.prod === parentProdId);
         const shownList = parentGroup ? (parentGroup.shownServices || []) : [];
 
-        // Filter for shown services first, then sort core first, then alphabetical
         const visibleServices = data.Services.filter(s => shownList.includes(s.key));
         
         if (visibleServices.length > 0) {
@@ -1131,7 +1195,7 @@ function buildStatusCard(result, isProd, displayName, parentProdId, isExternal =
             });
             
             const pillNodes = sortedServices.map(s => {
-                let dotClass = 'service-dot'; // Green
+                let dotClass = 'service-dot';
                 if (statusInfo.raw !== 'OK') {
                     if (statusInfo.raw.includes('CORE') && s.isCore) dotClass = 'service-dot warn';
                     if (statusInfo.raw.includes('NONCORE') && !s.isCore) dotClass = 'service-dot warn';
@@ -1145,7 +1209,38 @@ function buildStatusCard(result, isProd, displayName, parentProdId, isExternal =
         }
     }
 
+    // Components (Atlassian - Jira, Bitbucket)
+    let componentsHtml = '';
+    if (isExternal && data.Components && data.Components.length > 0) {
+        const sortedComponents = [...data.Components].sort((a, b) => a.key.localeCompare(b.key));
+        const pillNodes = sortedComponents.map(c => {
+            let dotClass = 'service-dot';
+            const compStatus = (c.status || 'operational').toLowerCase();
+            if (compStatus === 'degraded_performance') dotClass = 'service-dot warn';
+            else if (compStatus === 'partial_outage' || compStatus === 'major_outage') dotClass = 'service-dot down';
+            return `<div class="service-pill"><div class="${dotClass}"></div>${c.key}</div>`;
+        });
+        componentsHtml = `<div class="sub-services"><div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem;">Components</div>${pillNodes.join('')}</div>`;
+    }
+
+    // Azure Services with geographies
+    let azureServicesHtml = '';
+    if (isExternal && data.AzureServices && data.AzureServices.length > 0) {
+        const serviceRows = data.AzureServices.map(svc => {
+            const geoPills = (svc.geographies || []).map(g => {
+                let dotClass = 'service-dot';
+                const h = (g.health || 'healthy').toLowerCase();
+                if (h === 'degraded' || h === 'advisory') dotClass = 'service-dot warn';
+                else if (h === 'unhealthy') dotClass = 'service-dot down';
+                return `<span class="service-pill" style="font-size: 0.7rem; padding: 0.15rem 0.4rem;" title="${g.name}: ${g.health}"><div class="${dotClass}" style="width: 5px; height: 5px;"></div>${g.id}</span>`;
+            }).join('');
+            return `<div style="margin-bottom: 0.5rem;"><div style="font-size: 0.8rem; font-weight: 500; margin-bottom: 0.2rem;">${svc.id}</div><div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">${geoPills}</div></div>`;
+        }).join('');
+        azureServicesHtml = `<div class="sub-services" style="margin-top: 0.5rem;"><div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem;">Services by Region</div>${serviceRows}</div>`;
+    }
+
     const locText = data.location ? `• ${data.location}` : '';
+    const statusPageLink = getStatusPageLink(result.instance, provider, isExternal);
 
     card.className = `status-card glass-panel ${statusInfo.class}`;
     card.innerHTML = `
@@ -1154,7 +1249,7 @@ function buildStatusCard(result, isProd, displayName, parentProdId, isExternal =
                 <div class="instance-id">
                     <i class="ph ${isProd ? 'ph-server' : 'ph-hard-drive'}"></i>
                     ${displayName}
-                    <a href="https://status.salesforce.com/instances/${result.instance}" target="_blank" class="trust-link" title="View on Salesforce Trust">
+                    <a href="${statusPageLink.url}" target="_blank" class="trust-link" title="${statusPageLink.title}">
                         <i class="ph ph-arrow-square-out"></i>
                     </a>
                 </div>
@@ -1174,6 +1269,7 @@ function buildStatusCard(result, isProd, displayName, parentProdId, isExternal =
                 <span class="detail-label"><i class="ph ph-activity"></i> Status</span>
                 <span class="detail-value" style="color: var(--${statusInfo.class.replace('status-', 'status-')})">${statusInfo.label}</span>
             </div>
+            ${data.statusDescription ? `<div class="detail-row"><span class="detail-label"></span><span class="detail-value" style="font-size: 0.85rem; color: var(--text-secondary);">${data.statusDescription}</span></div>` : ''}
             ${ data.maintenanceWindow ? `
                 <div class="detail-row">
                     <span class="detail-label"><i class="ph ph-clock"></i> Weekly Window</span>
@@ -1181,11 +1277,13 @@ function buildStatusCard(result, isProd, displayName, parentProdId, isExternal =
                 </div>
             ` : ''}
             
-            <div class="release-version">Release: ${data.releaseVersion || 'N/A'}</div>
+            ${!isExternal ? `<div class="release-version">Release: ${data.releaseVersion || 'N/A'}</div>` : ''}
             
             ${maintenanceHtml}
             ${incidentHtml}
             ${servicesHtml}
+            ${componentsHtml}
+            ${azureServicesHtml}
         </div>
     `;
     return card;
