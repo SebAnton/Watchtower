@@ -363,6 +363,69 @@ input[type="text"]::placeholder {
     text-align: center;
 }
 
+/* Collapsible Settings — collapsed by default, saves space on mobile */
+.settings-details {
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+.settings-details summary {
+    cursor: pointer;
+    color: var(--text-muted);
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0;
+    transition: var(--transition-fast);
+    font-weight: 500;
+}
+
+.settings-details summary:hover {
+    color: var(--accent-blue);
+}
+
+.settings-details-content {
+    padding-top: 1rem;
+    text-align: left;
+}
+
+.settings-details .app-title-section,
+.settings-details .refresh-interval-section {
+    margin-bottom: 1rem;
+}
+
+.settings-details .app-title-section:last-of-type,
+.settings-details .refresh-interval-section:last-of-type {
+    margin-bottom: 0;
+}
+
+.settings-details label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    display: block;
+    margin-bottom: 0.3rem;
+}
+
+.settings-details input[type="text"],
+.settings-details input[type="number"] {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-glass);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    color: var(--text-primary);
+    font-family: var(--font-family);
+    font-size: 0.9rem;
+    outline: none;
+}
+
+.settings-details input:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 2px var(--accent-blue-glow);
+}
+
 .sidebar-footer p {
     font-size: 0.8rem;
     color: var(--text-muted);
