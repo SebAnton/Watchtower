@@ -7,6 +7,7 @@
     const els = {
         sidebar: document.querySelector('.sidebar'),
         sidebarToggle: document.getElementById('sidebar-toggle'),
+        sidebarCloseMobile: document.getElementById('sidebar-close-mobile'),
         instanceList: document.getElementById('instance-list'),
         addForm: document.getElementById('add-instance-form'),
         newInput: document.getElementById('new-instance-input'),

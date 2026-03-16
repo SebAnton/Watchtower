@@ -62,17 +62,6 @@ You just need a static local server to avoid CORS/file protocol restrictions in 
   - `events.js` — Event listeners and handlers
   - `app.js` — Main orchestration and data fetching
 - `styles.css`: The complete design system and glassmorphism UI components.
-- `tests.html`: A custom, lightweight, zero-dependency test suite for the core JavaScript logic.
-
-## 🧪 Running Tests
-
-Watchtower includes its own bespoke testing framework built entirely in a single HTML file to validate the core logic (status mapping, incident deduplication, configuration management, migration logic).
-
-To run the tests, simply open `tests.html` in your browser (via your local file server):
-```
-http://localhost:8000/tests.html
-```
-The test suite will execute immediately and display the results, passing/failing specs, and total counts directly in the browser!
 
 ## 📡 API Usage
 

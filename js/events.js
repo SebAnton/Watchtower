@@ -147,6 +147,9 @@
 
     function setupEventListeners() {
         els.sidebarToggle.addEventListener('click', () => els.sidebar.classList.toggle('collapsed'));
+        if (els.sidebarCloseMobile) {
+            els.sidebarCloseMobile.addEventListener('click', () => els.sidebar.classList.add('collapsed'));
+        }
         els.addForm.addEventListener('submit', handleAddProdInstance);
         els.addExternalBtn.addEventListener('click', handleAddExternalService);
         els.refreshBtn.addEventListener('click', handleManualRefresh);

@@ -153,6 +153,7 @@ body {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    flex-shrink: 0;
 }
 
 .sidebar-header i {
@@ -360,6 +361,69 @@ input[type="text"]::placeholder {
     padding: 1rem 1.5rem;
     border-top: 1px solid var(--border-glass);
     text-align: center;
+}
+
+/* Collapsible Settings — collapsed by default, saves space on mobile */
+.settings-details {
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+.settings-details summary {
+    cursor: pointer;
+    color: var(--text-muted);
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0;
+    transition: var(--transition-fast);
+    font-weight: 500;
+}
+
+.settings-details summary:hover {
+    color: var(--accent-blue);
+}
+
+.settings-details-content {
+    padding-top: 1rem;
+    text-align: left;
+}
+
+.settings-details .app-title-section,
+.settings-details .refresh-interval-section {
+    margin-bottom: 1rem;
+}
+
+.settings-details .app-title-section:last-of-type,
+.settings-details .refresh-interval-section:last-of-type {
+    margin-bottom: 0;
+}
+
+.settings-details label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    display: block;
+    margin-bottom: 0.3rem;
+}
+
+.settings-details input[type="text"],
+.settings-details input[type="number"] {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-glass);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    color: var(--text-primary);
+    font-family: var(--font-family);
+    font-size: 0.9rem;
+    outline: none;
+}
+
+.settings-details input:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 2px var(--accent-blue-glow);
 }
 
 .sidebar-footer p {
@@ -1177,6 +1241,11 @@ input[type="text"]::placeholder {
 /* ==========================================================================
    Responsive Design
    ========================================================================== */
+/* Mobile close button - hidden on desktop */
+.sidebar-close-mobile {
+    display: none;
+}
+
 @media (max-width: 900px) {
     .app-container {
         flex-direction: column;
@@ -1200,5 +1269,56 @@ input[type="text"]::placeholder {
 
     .sidebar-content {
         padding: 1rem;
+    }
+
+    /* Full-screen overlay for config panel on mobile when expanded */
+    .sidebar:not(.collapsed) {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: 100%;
+        max-height: none;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        border-radius: 0;
+        margin: 0;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        animation: sidebarSlideIn var(--transition-smooth) ease-out;
+    }
+
+    .sidebar:not(.collapsed) .sidebar-content {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .sidebar:not(.collapsed) .sidebar-footer {
+        flex-shrink: 0;
+    }
+
+    /* Show close button on mobile when sidebar is expanded */
+    .sidebar:not(.collapsed) .sidebar-close-mobile {
+        display: flex;
+        margin-left: auto;
+    }
+
+    .sidebar-close-mobile {
+        flex-shrink: 0;
+    }
+}
+
+@keyframes sidebarSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }

@@ -25,6 +25,9 @@
             <div class="sidebar-header">
                 <i class="ph ph-cloud-warning text-gradient"></i>
                 <h2>Configuration</h2>
+                <button id="sidebar-close-mobile" class="btn-icon sidebar-close-mobile" title="Close" aria-label="Close configuration">
+                    <i class="ph ph-x"></i>
+                </button>
             </div>
             
             <div class="sidebar-content">
@@ -73,14 +76,19 @@
             </div>
 
             <div class="sidebar-footer">
-                <div class="app-title-section" style="margin-bottom: 1rem;">
-                    <label for="app-title-input" style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">App title</label>
-                    <input type="text" id="app-title-input" placeholder="Watchtower" autocomplete="off" style="width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-glass); border-radius: 0.5rem; padding: 0.5rem 0.75rem; color: var(--text-primary); font-family: var(--font-family); font-size: 0.9rem; outline: none;">
-                </div>
-                <div class="refresh-interval-section" style="margin-bottom: 1rem;">
-                    <label for="refresh-interval-input" style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">Refresh interval (minutes)</label>
-                    <input type="number" id="refresh-interval-input" min="1" max="120" placeholder="2" autocomplete="off" style="width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-glass); border-radius: 0.5rem; padding: 0.5rem 0.75rem; color: var(--text-primary); font-family: var(--font-family); font-size: 0.9rem; outline: none;">
-                </div>
+                <details class="settings-details">
+                    <summary><i class="ph ph-gear"></i> Settings</summary>
+                    <div class="settings-details-content">
+                        <div class="app-title-section">
+                            <label for="app-title-input">App title</label>
+                            <input type="text" id="app-title-input" placeholder="Watchtower" autocomplete="off">
+                        </div>
+                        <div class="refresh-interval-section">
+                            <label for="refresh-interval-input">Refresh interval (minutes)</label>
+                            <input type="number" id="refresh-interval-input" min="1" max="120" placeholder="2" autocomplete="off">
+                        </div>
+                    </div>
+                </details>
                 <div class="sidebar-actions" style="display: flex; gap: 0.5rem; justify-content: center; margin-bottom: 1rem;">
                     <button id="btn-export" class="btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; flex-grow: 1;" title="Export Config">
                         <i class="ph ph-download-simple"></i> Export
