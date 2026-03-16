@@ -153,6 +153,7 @@ body {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    flex-shrink: 0;
 }
 
 .sidebar-header i {
@@ -1177,6 +1178,11 @@ input[type="text"]::placeholder {
 /* ==========================================================================
    Responsive Design
    ========================================================================== */
+/* Mobile close button - hidden on desktop */
+.sidebar-close-mobile {
+    display: none;
+}
+
 @media (max-width: 900px) {
     .app-container {
         flex-direction: column;
@@ -1200,5 +1206,56 @@ input[type="text"]::placeholder {
 
     .sidebar-content {
         padding: 1rem;
+    }
+
+    /* Full-screen overlay for config panel on mobile when expanded */
+    .sidebar:not(.collapsed) {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: 100%;
+        max-height: none;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        border-radius: 0;
+        margin: 0;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        animation: sidebarSlideIn var(--transition-smooth) ease-out;
+    }
+
+    .sidebar:not(.collapsed) .sidebar-content {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .sidebar:not(.collapsed) .sidebar-footer {
+        flex-shrink: 0;
+    }
+
+    /* Show close button on mobile when sidebar is expanded */
+    .sidebar:not(.collapsed) .sidebar-close-mobile {
+        display: flex;
+        margin-left: auto;
+    }
+
+    .sidebar-close-mobile {
+        flex-shrink: 0;
+    }
+}
+
+@keyframes sidebarSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
