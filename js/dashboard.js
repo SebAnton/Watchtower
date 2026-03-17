@@ -158,13 +158,21 @@
                     if (!a.isCore && b.isCore) return 1;
                     return a.key.localeCompare(b.key);
                 });
+                const affectedServiceKeys = new Set();
+                const affectedServiceKeysDown = new Set();
+                const activeIncidents = Array.from(uniqueIncidents.values()).filter(inc => inc.status !== 'Resolved');
+                const isMajorSeverity = statusInfo.raw === 'INCIDENT' || statusInfo.raw === 'OUTAGE' || /MAJOR_INCIDENT|SERVICE DISRUPTION/i.test(statusInfo.raw);
+                activeIncidents.forEach(inc => {
+                    const keys = inc.serviceKeys || inc.ServiceKeys || [];
+                    keys.forEach(key => {
+                        affectedServiceKeys.add(key);
+                        if (isMajorSeverity) affectedServiceKeysDown.add(key);
+                    });
+                });
                 const pillNodes = sortedServices.map(s => {
                     let dotClass = 'service-dot';
-                    if (statusInfo.raw !== 'OK') {
-                        if (statusInfo.raw.includes('CORE') && s.isCore) dotClass = 'service-dot warn';
-                        if (statusInfo.raw.includes('NONCORE') && !s.isCore) dotClass = 'service-dot warn';
-                        if (statusInfo.raw === 'INCIDENT' || statusInfo.raw === 'MAJOR_INCIDENT_CORE') dotClass = 'service-dot down';
-                    }
+                    if (affectedServiceKeysDown.has(s.key)) dotClass = 'service-dot down';
+                    else if (affectedServiceKeys.has(s.key)) dotClass = 'service-dot warn';
                     return `<div class="service-pill ${s.isCore ? 'core' : ''}"><div class="${dotClass}"></div>${escapeHtml(s.key)}</div>`;
                 });
                 servicesHtml = `<div class="sub-services">${pillNodes.join('')}</div>`;
