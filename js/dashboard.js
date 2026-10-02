@@ -34,8 +34,8 @@
         const card = document.createElement('div');
 
         let badgeLabel = `<span class="badge badge-sandbox">SANDBOX</span>`;
-        if (isProd) badgeLabel = `<span class="badge" style="background: rgba(59,130,246,0.15); color: var(--accent-blue); border: 1px solid rgba(59,130,246,0.3)">PRODUCTION</span>`;
-        if (isExternal) badgeLabel = `<span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3)">GLOBAL SERVICE</span>`;
+        if (isProd) badgeLabel = `<span class="badge badge-prod">PRODUCTION</span>`;
+        if (isExternal) badgeLabel = `<span class="badge badge-external">GLOBAL SERVICE</span>`;
 
         const subtitleText = (result.instance !== displayName && !isExternal) ? `Instance: ${escapeHtml(result.instance)}` : '';
         let iconClass = isProd ? 'ph-server' : 'ph-hard-drive';
@@ -112,7 +112,7 @@
             const incidentLink = getIncidentDetailLink(activeIncident.id, provider, result);
             const incidentLinkSection = incidentLink ? `
                 <div style="font-size: 0.85rem; padding-top: 0.5rem; border-top: 1px dashed var(--border-glass);">
-                    <a href="${escapeHtml(safeUrl(incidentLink.url))}" target="_blank" rel="noopener noreferrer" class="trust-link" style="color: var(--accent-blue); font-weight: 500; display: inline-flex; gap: 0.3rem;" title="${escapeHtml(incidentLink.title)}" onclick="event.stopPropagation();">
+                    <a href="${escapeHtml(safeUrl(incidentLink.url))}" target="_blank" rel="noopener noreferrer" class="trust-link" style="color: var(--accent-soft); font-weight: 500; display: inline-flex; gap: 0.3rem;" title="${escapeHtml(incidentLink.title)}" onclick="event.stopPropagation();">
                         ${escapeHtml(incidentLink.label)} <i class="ph ph-arrow-square-out"></i>
                     </a>
                 </div>

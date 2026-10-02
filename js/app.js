@@ -24,10 +24,10 @@
         if (state.trackedConfig.length === 0 && state.trackedExternalConfig.length === 0) {
             els.statusGrid.innerHTML = '';
             els.statusGrid.classList.remove('dashboard-grid');
-            els.statusGrid.innerHTML = `<div style="text-align:center; padding: 4rem; color: var(--text-muted);">
-                <i class="ph ph-binoculars" style="font-size: 4rem; color: rgba(255,255,255,0.1); margin-bottom: 1rem;"></i>
+            els.statusGrid.innerHTML = `<div class="empty-state">
+                <img src="assets/brand/logo.webp" alt="Watchtower">
                 <h3>No Services Tracked</h3>
-                <p style="margin-top: 0.5rem; max-width: 400px; margin-left: auto; margin-right: auto;">Add a Salesforce Production org, or an external service from the sidebar configuration to begin tracking status.</p>
+                <p>Add a Salesforce Production org, or an external service from the sidebar configuration to begin tracking status.</p>
             </div>`;
             Watchtower.dashboard.updateTimestamp();
             return;

@@ -4,11 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Watchtower</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏰</text></svg>">
+    <meta name="theme-color" content="#0b0910">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="64x64" href="assets/brand/favicon-64.png">
+    <link rel="apple-touch-icon" href="assets/brand/apple-touch-icon.png">
     <!-- Modern typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Phosphor Icons for premium minimalist icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css" integrity="sha384-6p9AefaqUhEVheRlj1mpAkbngHXy9mbYMrIdcIt4Jlc9lOLIablJq3bBsLOjGwZ7" crossorigin="anonymous">
     <link rel="stylesheet" href="styles.css">
@@ -23,7 +26,7 @@
         <!-- Sidebar Navigation & Config -->
         <aside class="sidebar glass-panel">
             <div class="sidebar-header">
-                <i class="ph ph-cloud-warning text-gradient"></i>
+                <i class="ph ph-castle-turret text-gradient"></i>
                 <h2>Configuration</h2>
                 <button id="sidebar-close-mobile" class="btn-icon sidebar-close-mobile" title="Close" aria-label="Close configuration">
                     <i class="ph ph-x"></i>
@@ -53,7 +56,7 @@
                     </form>
                 </div>
                 
-                <hr style="border: none; border-top: 1px solid var(--border-glass); margin: 1.5rem 0;">
+                <hr class="ornate-divider">
 
                 <div class="config-section">
                     <h3>External Services</h3>
@@ -109,6 +112,7 @@
                     <button id="sidebar-toggle" class="btn-icon" title="Toggle Sidebar">
                         <i class="ph ph-list"></i>
                     </button>
+                    <img src="assets/brand/emblem.png" alt="" class="brand-emblem" width="44" height="44">
                     <div>
                         <h1 id="app-title">Watchtower</h1>
                         <span class="last-updated" id="last-updated">Last checked: Just now</span>
