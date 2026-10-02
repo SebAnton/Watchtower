@@ -25,4 +25,4 @@
         get autoRefreshIntervalId() { return autoRefreshIntervalId; },
         set autoRefreshIntervalId(v) { autoRefreshIntervalId = v; }
     };
-})(typeof window !== 'undefined' ? window : this);
+})(globalThis);

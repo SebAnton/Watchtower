@@ -144,4 +144,4 @@
     };
 
     document.addEventListener('DOMContentLoaded', init);
-})(typeof window !== 'undefined' ? window : this);
+})(globalThis);

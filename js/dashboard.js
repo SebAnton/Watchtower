@@ -124,14 +124,14 @@
             const incidentLink = getIncidentDetailLink(activeIncident.id, provider, result);
             const incidentLinkSection = incidentLink ? `
                 <div style="font-size: 0.85rem; padding-top: 0.5rem; border-top: 1px dashed var(--border-glass);">
-                    <a href="${escapeHtml(safeUrl(incidentLink.url))}" target="_blank" rel="noopener noreferrer" class="trust-link" style="color: var(--accent-soft); font-weight: 500; display: inline-flex; gap: 0.3rem;" title="${escapeHtml(incidentLink.title)}" onclick="event.stopPropagation();">
+                    <a href="${escapeHtml(safeUrl(incidentLink.url))}" target="_blank" rel="noopener noreferrer" class="trust-link" style="color: var(--accent-soft); font-weight: 500; display: inline-flex; gap: 0.3rem;" title="${escapeHtml(incidentLink.title)}">
                         ${escapeHtml(incidentLink.label)} <i class="ph ph-arrow-square-out"></i>
                     </a>
                 </div>
             ` : '';
 
             incidentHtml = `
-                <div class="incident-alert" onclick="this.querySelector('.incident-details').classList.toggle('hidden')">
+                <div class="incident-alert">
                     <strong><i class="ph ${iconClassInc}" style="color: ${colorClass};"></i> ${headerText} <i class="ph ph-caret-down" style="font-size:0.8rem; color: var(--text-muted)"></i></strong>
                     <div class="incident-preview">${previewSubject}</div>
                     <div class="incident-details hidden">
@@ -511,4 +511,4 @@
         renderDashboardDOM,
         renderTableDOM
     };
-})(typeof window !== 'undefined' ? window : this);
+})(globalThis);

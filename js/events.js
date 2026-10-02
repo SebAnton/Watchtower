@@ -152,6 +152,15 @@
         els.addExternalBtn.addEventListener('click', handleAddExternalService);
         els.refreshBtn.addEventListener('click', handleManualRefresh);
 
+        // Incident cards are re-rendered often, so expand/collapse is delegated from the grid.
+        // (Inline onclick handlers would need 'unsafe-inline' in the Content Security Policy.)
+        els.statusGrid.addEventListener('click', (e) => {
+            const alertEl = e.target.closest('.incident-alert');
+            if (!alertEl || e.target.closest('a')) return;
+            const details = alertEl.querySelector('.incident-details');
+            if (details) details.classList.toggle('hidden');
+        });
+
         if (els.appTitleInput) {
             els.appTitleInput.addEventListener('input', () => {
                 state.appSettings.appTitle = els.appTitleInput.value.trim() || 'Watchtower';
@@ -220,4 +229,4 @@
         showError,
         hideError
     };
-})(typeof window !== 'undefined' ? window : this);
+})(globalThis);

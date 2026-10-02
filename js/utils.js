@@ -23,4 +23,4 @@
 
     global.Watchtower = global.Watchtower || {};
     global.Watchtower.utils = { escapeHtml, generateOrgId };
-})(typeof window !== 'undefined' ? window : this);
+})(globalThis);

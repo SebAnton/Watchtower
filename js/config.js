@@ -90,4 +90,4 @@
         exportConfig,
         importConfig
     };
-})(typeof window !== 'undefined' ? window : this);
+})(globalThis);

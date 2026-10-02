@@ -39,4 +39,4 @@
         SUPPORTED_EXTERNAL_SERVICES,
         AZURE_REGIONS
     };
-})(typeof window !== 'undefined' ? window : this);
+})(globalThis);

@@ -244,4 +244,4 @@
         normalizeDocuSignData,
         filterDocuSignData
     };
-})(typeof window !== 'undefined' ? window : this);
+})(globalThis);
