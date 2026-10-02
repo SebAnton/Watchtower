@@ -115,6 +115,7 @@
             state.fetchCache = newCache;
             skeletonShown = false;
             Watchtower.sidebar.populateOrgFilters();
+            Watchtower.sidebar.populateExternalFilters();
             Watchtower.dashboard.renderDashboardDOM();
             Watchtower.dashboard.showRefreshSuccess();
         } catch (err) {

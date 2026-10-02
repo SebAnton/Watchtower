@@ -14,7 +14,9 @@
     const SUPPORTED_EXTERNAL_SERVICES = [
         { id: 'jira', name: 'Jira Software', type: 'atlassian', api: 'https://jira-software.status.atlassian.com/api/v2/summary.json', statusPageUrl: 'https://jira-software.status.atlassian.com/', incidentUrlTemplate: 'https://jira-software.status.atlassian.com/incidents/{id}' },
         { id: 'bitbucket', name: 'Atlassian Bitbucket', type: 'atlassian', api: 'https://bitbucket.status.atlassian.com/api/v2/summary.json', statusPageUrl: 'https://bitbucket.status.atlassian.com/', incidentUrlTemplate: 'https://bitbucket.status.atlassian.com/incidents/{id}' },
-        { id: 'azure', name: 'Azure DevOps', type: 'azure', api: 'https://status.dev.azure.com/_apis/status/health?api-version=6.0-preview.1', statusPageUrl: 'https://status.dev.azure.com/', incidentUrlTemplate: null }
+        { id: 'azure', name: 'Azure DevOps', type: 'azure', api: 'https://status.dev.azure.com/_apis/status/health?api-version=6.0-preview.1', statusPageUrl: 'https://status.dev.azure.com/', incidentUrlTemplate: null },
+        // DocuSign's status center (health.docusign.com) publishes two JSON feeds; there is no maintenance feed.
+        { id: 'docusign', name: 'DocuSign', type: 'docusign', api: 'https://health.docusign.com/production/1ds/ssg/apps/health/dynamic/components.json', incidentsApi: 'https://health.docusign.com/production/1ds/ssg/apps/health/dynamic/incidents.json', statusPageUrl: 'https://health.docusign.com/status', incidentUrlTemplate: 'https://health.docusign.com/status/incidents?id={id}' }
     ];
 
     const AZURE_REGIONS = [

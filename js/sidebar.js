@@ -75,31 +75,66 @@
         Watchtower.dashboard.renderDashboardDOM();
     }
 
-    function populateAzureRegionFilters() {
-        state.trackedExternalConfig.filter(s => s.type === 'azure').forEach(svc => {
-            const container = document.getElementById(`filters-azure-${svc.id}`);
+    /**
+     * External services with a sub-filter. An empty preference list means "show everything".
+     * Options are { id, label }; DocuSign's come from the latest fetch because products are listed by the feed.
+     */
+    const EXTERNAL_FILTERS = {
+        azure: {
+            key: 'shownRegions',
+            summary: 'Filter Regions',
+            icon: 'ph-map-trifold',
+            placeholder: 'Select regions to display',
+            options: () => AZURE_REGIONS.map(r => ({ id: r.id, label: `${r.name} (${r.id})` }))
+        },
+        docusign: {
+            key: 'shownProducts',
+            summary: 'Filter Products',
+            icon: 'ph-package',
+            placeholder: 'Waiting for data...',
+            options: svc => {
+                const res = state.fetchCache[svc.id];
+                const products = res && res.success && res.data && res.data.DocuSignProducts ? res.data.DocuSignProducts : [];
+                return products.map(p => ({ id: p.name, label: p.name }));
+            }
+        }
+    };
+
+    function populateExternalFilters() {
+        state.trackedExternalConfig.forEach(svc => {
+            const spec = EXTERNAL_FILTERS[svc.type];
+            const container = spec && document.getElementById(`filters-ext-${svc.id}`);
             if (!container) return;
 
-            const shownList = svc.shownRegions || [];
-            container.replaceChildren(...AZURE_REGIONS.map(reg =>
-                buildFilterItem(`${reg.name} (${reg.id})`, shownList.length === 0 || shownList.includes(reg.id), checked => toggleAzureRegionFilter(svc.id, reg.id, checked))
+            const options = spec.options(svc);
+            if (options.length === 0) return;
+            const shownList = svc[spec.key] || [];
+            container.replaceChildren(...options.map(opt =>
+                buildFilterItem(opt.label, shownList.length === 0 || shownList.includes(opt.id), checked => toggleExternalFilter(svc.id, opt.id, checked))
             ));
         });
     }
 
-    function toggleAzureRegionFilter(svcId, regionId, isChecked) {
+    function toggleExternalFilter(svcId, optionId, isChecked) {
         const svc = state.trackedExternalConfig.find(s => s.id === svcId);
-        if (!svc) return;
-        if (!svc.shownRegions) svc.shownRegions = [];
-        const allIds = AZURE_REGIONS.map(r => r.id);
+        const spec = svc && EXTERNAL_FILTERS[svc.type];
+        if (!spec) return;
+        const allIds = spec.options(svc).map(o => o.id);
+        let shown = (svc[spec.key] || []).filter(id => allIds.includes(id));
 
         if (isChecked) {
-            if (!svc.shownRegions.includes(regionId)) svc.shownRegions.push(regionId);
-            if (svc.shownRegions.length === allIds.length) svc.shownRegions = [];
+            if (!shown.includes(optionId)) shown.push(optionId);
+            if (shown.length === allIds.length) shown = [];
         } else {
-            if (svc.shownRegions.length === 0) svc.shownRegions = [...allIds];
-            svc.shownRegions = svc.shownRegions.filter(r => r !== regionId);
+            if (shown.length === 0) shown = [...allIds];
+            shown = shown.filter(id => id !== optionId);
+            if (shown.length === 0) {
+                // An empty list means "all", so unchecking the last box would show everything again; keep it checked.
+                populateExternalFilters();
+                return;
+            }
         }
+        svc[spec.key] = shown;
         Watchtower.storage.saveExternalInstances();
         Watchtower.dashboard.renderDashboardDOM();
     }
@@ -262,6 +297,7 @@
             let iconHtml = '<i class="ph ph-globe"></i>';
             if (svc.type === 'atlassian') iconHtml = '<i class="ph ph-kanban"></i>';
             else if (svc.type === 'azure') iconHtml = '<i class="ph ph-microsoft-logo"></i>';
+            else if (svc.type === 'docusign') iconHtml = '<i class="ph ph-signature"></i>';
             titleContainer.innerHTML = `${iconHtml} <span class="name-text">${escapeHtml(svc.name)}</span>`;
             const removeBtn = document.createElement('button');
             removeBtn.className = 'btn-remove';
@@ -271,14 +307,15 @@
             item.appendChild(titleContainer);
             item.appendChild(removeBtn);
 
-            if (svc.type === 'azure') {
+            const filterSpec = EXTERNAL_FILTERS[svc.type];
+            if (filterSpec) {
                 const filtersDetails = document.createElement('details');
                 filtersDetails.className = 'org-filters-details';
                 filtersDetails.style.marginTop = '0.3rem';
                 filtersDetails.innerHTML = `
-                    <summary><i class="ph ph-map-trifold"></i> Filter Regions</summary>
-                    <div id="filters-azure-${escapeHtml(svc.id)}" class="filter-list">
-                        <div style="font-size: 0.75rem; color: var(--text-muted); padding: 0.3rem 0;">Select regions to display</div>
+                    <summary><i class="ph ${filterSpec.icon}"></i> ${filterSpec.summary}</summary>
+                    <div id="filters-ext-${escapeHtml(svc.id)}" class="filter-list">
+                        <div style="font-size: 0.75rem; color: var(--text-muted); padding: 0.3rem 0;">${filterSpec.placeholder}</div>
                     </div>
                 `;
                 item.appendChild(filtersDetails);
@@ -287,16 +324,16 @@
         });
 
         els.externalList.appendChild(list);
-        populateAzureRegionFilters();
+        populateExternalFilters();
     }
 
     global.Watchtower = global.Watchtower || {};
     global.Watchtower.sidebar = {
         populateExternalSelect,
         populateOrgFilters,
-        populateAzureRegionFilters,
+        populateExternalFilters,
         toggleOrgServiceFilter,
-        toggleAzureRegionFilter,
+        toggleExternalFilter,
         renderSidebarList,
         renderExternalList
     };
