@@ -7,6 +7,7 @@
     const { Watchtower } = global;
     const { STORAGE_KEY, DEFAULT_CONFIG, EXTERNAL_STORAGE_KEY, APP_SETTINGS_KEY } = Watchtower.constants;
     const state = Watchtower.state;
+    const { normalizeTrackedConfig, normalizeExternalConfig, serializeExternalConfig } = Watchtower.validation;
 
     function saveInstances() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state.trackedConfig));
@@ -14,93 +15,61 @@
 
     function loadInstances() {
         const saved = localStorage.getItem(STORAGE_KEY);
+        let parsed = null;
         if (saved) {
             try {
-                const parsed = JSON.parse(saved);
-
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    if (typeof parsed[0] === 'string') {
-                        const prods = parsed.filter(i => !i.startsWith('CS') && !i.startsWith('TEST'));
-                        const sandboxes = parsed.filter(i => i.startsWith('CS') || i.startsWith('TEST')).map(sb => ({ id: sb, name: sb }));
-
-                        if (prods.length === 0) {
-                            state.trackedConfig = [{ id: Watchtower.utils.generateOrgId(), prod: 'LEGACY_PROD', prodName: 'LEGACY_PROD', sandboxes }];
-                        } else {
-                            state.trackedConfig = prods.map((p, idx) => ({
-                                id: Watchtower.utils.generateOrgId(),
-                                prod: p,
-                                prodName: p,
-                                sandboxes: idx === 0 ? sandboxes : []
-                            }));
-                        }
-                        saveInstances();
-                    } else if (typeof parsed[0] === 'object' && parsed[0].prod && (!parsed[0].prodName || (parsed[0].sandboxes.length > 0 && typeof parsed[0].sandboxes[0] === 'string'))) {
-                        state.trackedConfig = parsed.map(g => ({
-                            id: g.id || Watchtower.utils.generateOrgId(),
-                            prod: g.prod,
-                            prodName: g.prodName || g.prod,
-                            sandboxes: (g.sandboxes || []).map(sb => typeof sb === 'string' ? { id: sb, name: sb } : sb)
-                        }));
-                        saveInstances();
-                    } else {
-                        state.trackedConfig = parsed;
-                    }
-                } else {
-                    state.trackedConfig = parsed;
-                }
-
-                let migrated = false;
-                try {
-                    const oldSettings = localStorage.getItem('sf_status_settings');
-                    if (oldSettings) {
-                        const settingsParsed = JSON.parse(oldSettings);
-                        const shownByOrg = settingsParsed.shownServicesByOrg || settingsParsed.hiddenServicesByOrg ? {} : null;
-                        if (settingsParsed.shownServicesByOrg) {
-                            Object.assign(shownByOrg, settingsParsed.shownServicesByOrg);
-                        }
-                        if (shownByOrg) {
-                            state.trackedConfig.forEach(g => {
-                                if (!g.shownServices) g.shownServices = shownByOrg[g.prod] || [];
-                            });
-                            migrated = true;
-                        }
-                        localStorage.removeItem('sf_status_settings');
-                    }
-                } catch (e) { /* Settings migration skipped */ }
-
-                state.trackedConfig.forEach(g => {
-                    if (!g.shownServices) g.shownServices = [];
-                });
-
-                if (migrated) saveInstances();
+                parsed = JSON.parse(saved);
             } catch (e) {
                 console.error('Failed to parse saved instances:', e);
-                state.trackedConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
             }
+        }
+
+        if (Array.isArray(parsed)) {
+            state.trackedConfig = normalizeTrackedConfig(parsed);
+            migrateLegacyServiceSettings();
         } else {
             state.trackedConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
-            saveInstances();
         }
+        // Persist the normalized form so older formats are migrated once.
+        saveInstances();
         Watchtower.sidebar.renderSidebarList();
+    }
+
+    /** Moves per-org service filters from the old 'sf_status_settings' key onto each org group. */
+    function migrateLegacyServiceSettings() {
+        try {
+            const oldSettings = localStorage.getItem('sf_status_settings');
+            if (!oldSettings) return;
+            const shownByOrg = JSON.parse(oldSettings).shownServicesByOrg;
+            if (shownByOrg && typeof shownByOrg === 'object') {
+                state.trackedConfig.forEach(g => {
+                    if (g.shownServices.length === 0 && Array.isArray(shownByOrg[g.prod])) {
+                        g.shownServices = shownByOrg[g.prod].filter(s => typeof s === 'string');
+                    }
+                });
+            }
+            localStorage.removeItem('sf_status_settings');
+        } catch (e) { /* Settings migration skipped */ }
     }
 
     function loadExternalInstances() {
         const saved = localStorage.getItem(EXTERNAL_STORAGE_KEY);
+        let parsed = [];
         if (saved) {
             try {
-                state.trackedExternalConfig = JSON.parse(saved);
+                parsed = JSON.parse(saved);
             } catch (e) {
                 console.error('Failed to parse external instances:', e);
-                state.trackedExternalConfig = [];
             }
-        } else {
-            state.trackedExternalConfig = [];
         }
+        state.trackedExternalConfig = normalizeExternalConfig(parsed);
+        // Rewrites entries saved by older versions (which stored full definitions) in the slim format.
+        saveExternalInstances();
         Watchtower.sidebar.renderExternalList();
     }
 
     function saveExternalInstances() {
-        localStorage.setItem(EXTERNAL_STORAGE_KEY, JSON.stringify(state.trackedExternalConfig));
+        localStorage.setItem(EXTERNAL_STORAGE_KEY, JSON.stringify(serializeExternalConfig(state.trackedExternalConfig)));
     }
 
     function loadAppSettings() {

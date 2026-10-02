@@ -22,12 +22,16 @@
             if (r.success && r.data) {
                 const d = r.data;
                 sig += `:${normalizeStatusValue(d.status)}`;
-                const incIds = (d.Incidents || []).map(i => `${i.id}:${i.status}`).sort().join(',');
+                // updatedAt and timeline length catch new updates posted to an ongoing incident.
+                const incIds = (d.Incidents || [])
+                    .map(i => `${i.id}:${i.status}:${i.updatedAt || ''}:${(i.timeline || i.IncidentEvents || []).length}`)
+                    .sort().join(',');
                 sig += `:${incIds}`;
                 sig += `:${(d.Maintenances || []).length}`;
                 const maintStarts = (d.Maintenances || []).map(m => m.startDate).sort().join(',');
                 sig += `:${maintStarts}`;
                 sig += `:${d.releaseVersion || ''}`;
+                sig += `:${d.statusDescription || ''}`;
                 if (d.Components) sig += `:C${d.Components.map(c => `${c.key}:${c.status}`).sort().join(',')}`;
                 if (d.AzureServices) {
                     const azParts = d.AzureServices.map(s =>
@@ -65,12 +69,12 @@
 
     function getIncidentDetailLink(incidentId, provider, result) {
         if (provider && provider.incidentUrlTemplate) {
-            const url = provider.incidentUrlTemplate.replace('{id}', incidentId);
+            const url = provider.incidentUrlTemplate.replace('{id}', encodeURIComponent(incidentId));
             const label = provider.name ? `View full details on ${provider.name}` : 'View full details';
             return { url, label, title: label };
         }
         if (!provider) {
-            return { url: `https://status.salesforce.com/incidents/${incidentId}`, label: 'View full details on Trust', title: 'View exact incident details on Salesforce Trust' };
+            return { url: `https://status.salesforce.com/incidents/${encodeURIComponent(incidentId)}`, label: 'View full details on Trust', title: 'View exact incident details on Salesforce Trust' };
         }
         if (provider.statusPageUrl) {
             return { url: provider.statusPageUrl, label: 'View status page', title: `View ${provider.name} status` };
@@ -82,7 +86,7 @@
         if (isExternal && provider && provider.statusPageUrl) {
             return { url: provider.statusPageUrl, title: `View on ${provider.name || 'Status Page'}` };
         }
-        return { url: `https://status.salesforce.com/instances/${instance}`, title: 'View on Salesforce Trust' };
+        return { url: `https://status.salesforce.com/instances/${encodeURIComponent(instance)}`, title: 'View on Salesforce Trust' };
     }
 
     function filterAndDeduplicateIncidents(incidentsData) {
@@ -92,7 +96,11 @@
         const now = new Date();
         const fortyEightHoursBack = new Date(now.getTime() - (48 * 60 * 60 * 1000));
 
-        incidentsData.forEach(inc => {
+        // Active incidents first so callers that show "the" incident never hide an active one behind a resolved one.
+        const ordered = [...incidentsData].sort((a, b) => (a && a.status === 'Resolved' ? 1 : 0) - (b && b.status === 'Resolved' ? 1 : 0));
+
+        ordered.forEach(inc => {
+            if (!inc) return;
             if (inc.status === 'Resolved') {
                 let resolvedTs = inc.updatedAt ? new Date(inc.updatedAt) : null;
                 if (inc.timeline) {
@@ -103,12 +111,23 @@
                 }
                 if (resolvedTs && resolvedTs < fortyEightHoursBack) return;
             }
-            if (inc && inc.id && !uniqueIncidents.has(inc.id)) {
+            if (inc.id && !uniqueIncidents.has(inc.id)) {
                 uniqueIncidents.set(inc.id, inc);
             }
         });
 
         return uniqueIncidents;
+    }
+
+    /** Short text for the table view, e.g. "2 active", "1 active, 1 resolved", "1 resolved". */
+    function summarizeIncidents(incidentMap) {
+        const all = Array.from(incidentMap.values());
+        const active = all.filter(i => i.status !== 'Resolved').length;
+        const resolved = all.length - active;
+        const parts = [];
+        if (active > 0) parts.push(`${active} active`);
+        if (resolved > 0) parts.push(`${resolved} resolved`);
+        return parts.length > 0 ? parts.join(', ') : '—';
     }
 
     global.Watchtower = global.Watchtower || {};
@@ -118,6 +137,7 @@
         getStatusInfo,
         getIncidentDetailLink,
         getStatusPageLink,
-        filterAndDeduplicateIncidents
+        filterAndDeduplicateIncidents,
+        summarizeIncidents
     };
 })(typeof window !== 'undefined' ? window : this);

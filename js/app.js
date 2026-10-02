@@ -11,7 +11,16 @@
     const { getCacheDigest } = Watchtower.status;
     const { fetchInstanceData, fetchExternalInstanceData } = Watchtower.api;
 
+    // Each call gets an id; results from a call that has since been superseded are dropped,
+    // so a slow older fetch can't overwrite data from a newer one (e.g. after adding a sandbox).
+    let latestRequestId = 0;
+    // True while loading skeletons are on screen, so a silent refresh that supersedes
+    // a full load still renders even when the data itself hasn't changed.
+    let skeletonShown = false;
+
     async function fetchAllStatuses(options = {}) {
+        const requestId = ++latestRequestId;
+
         if (state.trackedConfig.length === 0 && state.trackedExternalConfig.length === 0) {
             els.statusGrid.innerHTML = '';
             els.statusGrid.classList.remove('dashboard-grid');
@@ -25,11 +34,11 @@
         }
 
         const isBackgroundRefresh = options.silent === true && Object.keys(state.fetchCache).length > 0;
-        const previousDigest = isBackgroundRefresh ? getCacheDigest(state.fetchCache) : null;
 
         if (!isBackgroundRefresh) {
             els.statusGrid.innerHTML = '';
             els.statusGrid.classList.remove('dashboard-grid');
+            skeletonShown = true;
         }
 
         const uniqueInstances = new Set();
@@ -92,23 +101,28 @@
 
         try {
             const results = await Promise.all([...fetchPromises, ...fetchExternalPromises]);
+            if (requestId !== latestRequestId) return;
             const newCache = {};
             results.forEach(res => { newCache[res.instance] = res; });
             const newDigest = getCacheDigest(newCache);
 
-            if (isBackgroundRefresh && newDigest === previousDigest) {
+            if (isBackgroundRefresh && !skeletonShown && newDigest === getCacheDigest(state.fetchCache)) {
                 state.fetchCache = newCache;
                 Watchtower.dashboard.showRefreshSuccess();
                 return;
             }
 
             state.fetchCache = newCache;
+            skeletonShown = false;
             Watchtower.sidebar.populateOrgFilters();
             Watchtower.dashboard.renderDashboardDOM();
             Watchtower.dashboard.showRefreshSuccess();
         } catch (err) {
             console.error('Error fetching data:', err);
-            if (!isBackgroundRefresh) Watchtower.dashboard.renderDashboardDOM();
+            if (skeletonShown && requestId === latestRequestId) {
+                skeletonShown = false;
+                Watchtower.dashboard.renderDashboardDOM();
+            }
         }
     }
 
