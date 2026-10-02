@@ -5,7 +5,7 @@
     'use strict';
 
     const { Watchtower } = global;
-    const { SUPPORTED_EXTERNAL_SERVICES } = Watchtower.constants;
+    const { normalizeTrackedConfig, normalizeExternalConfig, serializeExternalConfig } = Watchtower.validation;
     const state = Watchtower.state;
     const { els } = Watchtower.dom;
 
@@ -24,7 +24,7 @@
     function exportConfig() {
         const backup = {
             trackedConfig: state.trackedConfig,
-            trackedExternalConfig: state.trackedExternalConfig,
+            trackedExternalConfig: serializeExternalConfig(state.trackedExternalConfig),
             appSettings: state.appSettings
         };
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backup, null, 2));
@@ -44,24 +44,16 @@
             try {
                 const parsed = JSON.parse(e.target.result);
                 if (parsed && typeof parsed === 'object') {
-                    if (parsed.trackedConfig && Array.isArray(parsed.trackedConfig)) {
-                        parsed.trackedConfig.forEach(g => {
-                            if (!g.shownServices) g.shownServices = [];
-                        });
-                        state.trackedConfig = parsed.trackedConfig;
-                        Watchtower.storage.saveInstances();
-                    } else {
+                    if (!Array.isArray(parsed.trackedConfig)) {
                         throw new Error('Missing or invalid trackedConfig array');
                     }
-                    if (parsed.trackedExternalConfig && Array.isArray(parsed.trackedExternalConfig)) {
-                        state.trackedExternalConfig = parsed.trackedExternalConfig
-                            .filter(s => SUPPORTED_EXTERNAL_SERVICES.some(def => def.id === s.id))
-                            .map(s => {
-                                const def = SUPPORTED_EXTERNAL_SERVICES.find(d => d.id === s.id);
-                                const merged = { ...def, ...s };
-                                if (s.type === 'azure' && !Array.isArray(merged.shownRegions)) merged.shownRegions = [];
-                                return merged;
-                            });
+                    const importedOrgs = normalizeTrackedConfig(parsed.trackedConfig);
+                    const objectEntries = parsed.trackedConfig.filter(g => typeof g !== 'string').length;
+                    const skipped = objectEntries > 0 ? objectEntries - importedOrgs.length : 0;
+                    state.trackedConfig = importedOrgs;
+                    Watchtower.storage.saveInstances();
+                    if (Array.isArray(parsed.trackedExternalConfig)) {
+                        state.trackedExternalConfig = normalizeExternalConfig(parsed.trackedExternalConfig);
                         Watchtower.storage.saveExternalInstances();
                     }
                     if (parsed.appSettings && typeof parsed.appSettings === 'object') {
@@ -77,7 +69,9 @@
                     Watchtower.sidebar.renderSidebarList();
                     Watchtower.sidebar.renderExternalList();
                     Watchtower.app.fetchAllStatuses();
-                    alert('Configuration imported successfully!');
+                    alert(skipped > 0
+                        ? `Configuration imported. ${skipped} invalid organization entr${skipped === 1 ? 'y was' : 'ies were'} skipped.`
+                        : 'Configuration imported successfully!');
                 }
             } catch (err) {
                 console.error('Import failed:', err);

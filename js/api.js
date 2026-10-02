@@ -6,7 +6,8 @@
 
     function normalizeAtlassianData(rawData) {
         let mappedStatus = 'UNKNOWN';
-        const indicator = rawData.status && rawData.status.indicator ? rawData.status.indicator.toLowerCase() : 'none';
+        // A missing indicator means the response is not what we expect, so report UNKNOWN rather than OK.
+        const indicator = rawData.status && typeof rawData.status.indicator === 'string' ? rawData.status.indicator.toLowerCase() : null;
 
         if (indicator === 'none') mappedStatus = 'OK';
         else if (indicator === 'minor') mappedStatus = 'DEGRADATION';
@@ -60,7 +61,7 @@
 
     function normalizeAzureData(rawData) {
         let mappedStatus = 'UNKNOWN';
-        const health = rawData.status && rawData.status.health ? rawData.status.health.toLowerCase() : 'healthy';
+        const health = rawData.status && typeof rawData.status.health === 'string' ? rawData.status.health.toLowerCase() : null;
 
         if (health === 'healthy') mappedStatus = 'OK';
         else if (health === 'degraded' || health === 'advisory') mappedStatus = 'DEGRADATION';
@@ -68,13 +69,12 @@
 
         let mappedIncidents = [];
         if (mappedStatus !== 'OK' && rawData.status && rawData.status.message) {
+            // The health API has no incident timestamps; leave them out rather than stamping "now" on every fetch.
             mappedIncidents.push({
                 id: 'azure_inc_1',
                 status: 'Active',
                 externalId: 'AZURE_1',
-                message: rawData.status.message,
-                updatedAt: new Date().toISOString(),
-                timeline: [{ title: 'Update', createdAt: new Date().toISOString(), content: rawData.status.message }]
+                message: rawData.status.message
             });
         }
 
@@ -95,7 +95,7 @@
 
     async function fetchInstanceData(instance) {
         try {
-            const response = await fetch(`https://api.status.salesforce.com/v1/instances/${instance}/status`);
+            const response = await fetch(`https://api.status.salesforce.com/v1/instances/${encodeURIComponent(instance)}/status`);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
             return { success: true, instance, data };

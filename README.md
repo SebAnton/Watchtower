@@ -48,8 +48,9 @@ You just need a static local server to avoid CORS/file protocol restrictions in 
 
 - `index.html`: The main dashboard UI and document structure.
 - `js/`: Modular JavaScript application (load order matters):
-  - `utils.js` — HTML/JS escaping utilities
+  - `utils.js` — HTML escaping and id helpers
   - `constants.js` — Storage keys, default config, external service definitions
+  - `validation.js` — Validation/normalization of stored and imported config, safe URLs
   - `state.js` — Mutable application state
   - `dom.js` — Cached DOM element references
   - `status.js` — Status mapping, incident filtering, link helpers
@@ -62,6 +63,15 @@ You just need a static local server to avoid CORS/file protocol restrictions in 
   - `events.js` — Event listeners and handlers
   - `app.js` — Main orchestration and data fetching
 - `styles.css`: The complete design system and glassmorphism UI components.
+- `tests/`: Unit tests for the DOM-free modules.
+
+## 🧪 Running Tests
+
+Tests use Node's built-in test runner (Node 18+), with no dependencies to install:
+
+```bash
+node --test tests/*.test.js
+```
 
 ## 📡 API Usage
 

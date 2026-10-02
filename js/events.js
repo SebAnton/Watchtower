@@ -6,7 +6,7 @@
 
     const { Watchtower } = global;
     const { escapeHtml } = Watchtower.utils;
-    const { SUPPORTED_EXTERNAL_SERVICES } = Watchtower.constants;
+    const { isValidInstance, hydrateExternalService } = Watchtower.validation;
     const state = Watchtower.state;
     const { els } = Watchtower.dom;
 
@@ -30,7 +30,7 @@
             showError('Production Org with this instance and alias already tracked.');
             return;
         }
-        if (!/^[A-Z0-9]{2,15}$/.test(val)) {
+        if (!isValidInstance(val)) {
             showError('Invalid instance format. Use e.g., NA211');
             return;
         }
@@ -64,7 +64,7 @@
             alert('Sandbox instance already tracked with this alias under this Organization.');
             return;
         }
-        if (!/^[A-Z0-9]{2,15}$/.test(val)) {
+        if (!isValidInstance(val)) {
             alert('Invalid instance format. Use e.g., CS71');
             return;
         }
@@ -98,10 +98,8 @@
             return;
         }
 
-        const svcDef = SUPPORTED_EXTERNAL_SERVICES.find(s => s.id === svcId);
-        if (svcDef) {
-            const config = { ...svcDef };
-            if (svcDef.type === 'azure') config.shownRegions = [];
+        const config = hydrateExternalService({ id: svcId });
+        if (config) {
             state.trackedExternalConfig.push(config);
             Watchtower.storage.saveExternalInstances();
             Watchtower.sidebar.renderExternalList();

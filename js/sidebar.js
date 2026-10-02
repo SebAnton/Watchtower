@@ -5,7 +5,7 @@
     'use strict';
 
     const { Watchtower } = global;
-    const { escapeHtml, escapeForJsString } = Watchtower.utils;
+    const { escapeHtml } = Watchtower.utils;
     const { SUPPORTED_EXTERNAL_SERVICES, AZURE_REGIONS } = Watchtower.constants;
     const state = Watchtower.state;
     const { els } = Watchtower.dom;
@@ -18,6 +18,17 @@
             option.textContent = svc.name;
             els.externalSelect.appendChild(option);
         });
+    }
+
+    function buildFilterItem(labelText, isChecked, onToggle) {
+        const label = document.createElement('label');
+        label.className = 'filter-item';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = isChecked;
+        checkbox.addEventListener('change', () => onToggle(checkbox.checked));
+        label.append(checkbox, ' ', labelText);
+        return label;
     }
 
     function populateOrgFilters() {
@@ -44,17 +55,9 @@
 
             const sortedServices = Array.from(serviceSet).sort((a, b) => a.localeCompare(b));
             const shownList = group.shownServices || [];
-            let html = '';
-            sortedServices.forEach(srv => {
-                const isChecked = shownList.includes(srv);
-                html += `
-                    <label class="filter-item">
-                        <input type="checkbox" value="${escapeHtml(srv)}" ${isChecked ? 'checked' : ''} onchange="Watchtower.sidebar.toggleOrgServiceFilter('${escapeForJsString(group.id)}', '${escapeForJsString(srv)}', this.checked)">
-                        ${escapeHtml(srv)}
-                    </label>
-                `;
-            });
-            container.innerHTML = html;
+            container.replaceChildren(...sortedServices.map(srv =>
+                buildFilterItem(srv, shownList.includes(srv), checked => toggleOrgServiceFilter(group.id, srv, checked))
+            ));
         });
     }
 
@@ -78,17 +81,9 @@
             if (!container) return;
 
             const shownList = svc.shownRegions || [];
-            let html = '';
-            AZURE_REGIONS.forEach(reg => {
-                const isChecked = shownList.length === 0 || shownList.includes(reg.id);
-                html += `
-                    <label class="filter-item">
-                        <input type="checkbox" value="${escapeHtml(reg.id)}" ${isChecked ? 'checked' : ''} onchange="Watchtower.sidebar.toggleAzureRegionFilter('${escapeForJsString(svc.id)}', '${escapeForJsString(reg.id)}', this.checked)">
-                        ${reg.name} (${reg.id})
-                    </label>
-                `;
-            });
-            container.innerHTML = html;
+            container.replaceChildren(...AZURE_REGIONS.map(reg =>
+                buildFilterItem(`${reg.name} (${reg.id})`, shownList.length === 0 || shownList.includes(reg.id), checked => toggleAzureRegionFilter(svc.id, reg.id, checked))
+            ));
         });
     }
 
@@ -237,7 +232,7 @@
             filtersDetails.className = 'org-filters-details';
             filtersDetails.innerHTML = `
                 <summary><i class="ph ph-faders"></i> Filter Sub-Services</summary>
-                <div id="filters-${group.id}" class="filter-list">
+                <div id="filters-${escapeHtml(group.id)}" class="filter-list">
                     <div style="font-size: 0.75rem; color: var(--text-muted); padding: 0.3rem 0;">Waiting for data...</div>
                 </div>
             `;
@@ -282,7 +277,7 @@
                 filtersDetails.style.marginTop = '0.3rem';
                 filtersDetails.innerHTML = `
                     <summary><i class="ph ph-map-trifold"></i> Filter Regions</summary>
-                    <div id="filters-azure-${svc.id}" class="filter-list">
+                    <div id="filters-azure-${escapeHtml(svc.id)}" class="filter-list">
                         <div style="font-size: 0.75rem; color: var(--text-muted); padding: 0.3rem 0;">Select regions to display</div>
                     </div>
                 `;

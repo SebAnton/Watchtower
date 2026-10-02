@@ -9,7 +9,8 @@
     const { AZURE_REGIONS } = Watchtower.constants;
     const state = Watchtower.state;
     const { els } = Watchtower.dom;
-    const { getStatusInfo, getIncidentDetailLink, getStatusPageLink, filterAndDeduplicateIncidents } = Watchtower.status;
+    const { getStatusInfo, getIncidentDetailLink, getStatusPageLink, filterAndDeduplicateIncidents, summarizeIncidents } = Watchtower.status;
+    const { safeUrl } = Watchtower.validation;
 
     function updateTimestamp(showSuccess = false) {
         const now = new Date();
@@ -48,7 +49,7 @@
                         <div class="instance-id">
                             <i class="ph ${iconClass}"></i>
                             ${escapeHtml(displayName)}
-                            ${isExternal && provider && provider.statusPageUrl ? `<a href="${escapeHtml(provider.statusPageUrl)}" target="_blank" class="trust-link" title="View status page"><i class="ph ph-arrow-square-out"></i></a>` : ''}
+                            ${isExternal && provider && provider.statusPageUrl ? `<a href="${escapeHtml(safeUrl(provider.statusPageUrl))}" target="_blank" rel="noopener noreferrer" class="trust-link" title="View status page"><i class="ph ph-arrow-square-out"></i></a>` : ''}
                         </div>
                         ${badgeLabel}
                         <span class="region-txt" style="margin-top:0.3rem;">${subtitleText}</span>
@@ -111,7 +112,7 @@
             const incidentLink = getIncidentDetailLink(activeIncident.id, provider, result);
             const incidentLinkSection = incidentLink ? `
                 <div style="font-size: 0.85rem; padding-top: 0.5rem; border-top: 1px dashed var(--border-glass);">
-                    <a href="${escapeHtml(incidentLink.url)}" target="_blank" class="trust-link" style="color: var(--accent-blue); font-weight: 500; display: inline-flex; gap: 0.3rem;" title="${escapeHtml(incidentLink.title)}" onclick="event.stopPropagation();">
+                    <a href="${escapeHtml(safeUrl(incidentLink.url))}" target="_blank" rel="noopener noreferrer" class="trust-link" style="color: var(--accent-blue); font-weight: 500; display: inline-flex; gap: 0.3rem;" title="${escapeHtml(incidentLink.title)}" onclick="event.stopPropagation();">
                         ${escapeHtml(incidentLink.label)} <i class="ph ph-arrow-square-out"></i>
                     </a>
                 </div>
@@ -224,7 +225,7 @@
                     <div class="instance-id">
                         <i class="ph ${isProd ? 'ph-server' : 'ph-hard-drive'}"></i>
                         ${escapeHtml(displayName)}
-                        <a href="${escapeHtml(statusPageLink.url)}" target="_blank" class="trust-link" title="${escapeHtml(statusPageLink.title)}">
+                        <a href="${escapeHtml(safeUrl(statusPageLink.url))}" target="_blank" rel="noopener noreferrer" class="trust-link" title="${escapeHtml(statusPageLink.title)}">
                             <i class="ph ph-arrow-square-out"></i>
                         </a>
                     </div>
@@ -233,15 +234,15 @@
                         <span class="region-txt" style="margin-top:0;">${subtitleText} ${locText}</span>
                     </div>
                 </div>
-                <div class="status-indicator" title="${statusInfo.raw}">
+                <div class="status-indicator" title="${escapeHtml(statusInfo.raw)}">
                     <div class="status-dot"></div>
-                    ${statusInfo.label}
+                    ${escapeHtml(statusInfo.label)}
                 </div>
             </div>
             <div class="card-details">
                 <div class="detail-row">
                     <span class="detail-label"><i class="ph ph-activity"></i> Status</span>
-                    <span class="detail-value" style="color: var(--${statusInfo.class})">${statusInfo.label}</span>
+                    <span class="detail-value" style="color: var(--${statusInfo.class})">${escapeHtml(statusInfo.label)}</span>
                 </div>
                 ${data.statusDescription ? `<div class="detail-row"><span class="detail-label"></span><span class="detail-value" style="font-size: 0.85rem; color: var(--text-secondary);">${escapeHtml(data.statusDescription)}</span></div>` : ''}
                 ${!isExternal ? `<div class="release-version">Release: ${escapeHtml(data.releaseVersion || 'N/A')}</div>` : ''}
@@ -268,7 +269,7 @@
         const tableRowHtml = (r) => `
             <tr class="status-row status-${r.statusInfo.class.replace('status-', '')}">
                 <td class="status-indicator-cell">
-                    <a href="${escapeHtml(r.statusPageLink.url)}" target="_blank" class="table-instance-link" title="${escapeHtml(r.statusPageLink.title)}">
+                    <a href="${escapeHtml(safeUrl(r.statusPageLink.url))}" target="_blank" rel="noopener noreferrer" class="table-instance-link" title="${escapeHtml(r.statusPageLink.title)}">
                         ${escapeHtml(r.name)}
                         ${r.instance !== r.name ? `<span class="table-instance-id">${escapeHtml(r.instance)}</span>` : ''}
                         <i class="ph ph-arrow-square-out table-link-icon"></i>
@@ -293,15 +294,11 @@
             const incidents = prodResult && prodResult.success && prodResult.data
                 ? filterAndDeduplicateIncidents(prodResult.data.Incidents)
                 : new Map();
-            const incidentSummary = incidents.size > 0
-                ? (Array.from(incidents.values())[0].status === 'Resolved' ? '1 resolved' : `${incidents.size} active`)
-                : '—';
+            const incidentSummary = summarizeIncidents(incidents);
             const release = prodResult && prodResult.success && prodResult.data && prodResult.data.releaseVersion
                 ? escapeHtml(prodResult.data.releaseVersion)
                 : '—';
-            const statusPageLink = prodResult && prodResult.success
-                ? getStatusPageLink(group.prod, null, false)
-                : { url: `https://status.salesforce.com/instances/${group.prod}`, title: 'View on Trust' };
+            const statusPageLink = getStatusPageLink(group.prod, null, false);
             tableRows.push(tableRowHtml({
                 name: group.prodName,
                 instance: group.prod,
@@ -321,15 +318,11 @@
                 const sbIncidents = sbResult && sbResult.success && sbResult.data
                     ? filterAndDeduplicateIncidents(sbResult.data.Incidents)
                     : new Map();
-                const sbIncidentSummary = sbIncidents.size > 0
-                    ? (Array.from(sbIncidents.values())[0].status === 'Resolved' ? '1 resolved' : `${sbIncidents.size} active`)
-                    : '—';
+                const sbIncidentSummary = summarizeIncidents(sbIncidents);
                 const sbRelease = sbResult && sbResult.success && sbResult.data && sbResult.data.releaseVersion
                     ? escapeHtml(sbResult.data.releaseVersion)
                     : '—';
-                const sbLink = sbResult && sbResult.success
-                    ? getStatusPageLink(sb.id, null, false)
-                    : { url: `https://status.salesforce.com/instances/${sb.id}`, title: 'View on Trust' };
+                const sbLink = getStatusPageLink(sb.id, null, false);
                 tableRows.push(tableRowHtml({
                     name: sb.name,
                     instance: sb.id,
@@ -353,12 +346,9 @@
                 const incidents = res && res.success && res.data
                     ? filterAndDeduplicateIncidents(res.data.Incidents)
                     : new Map();
-                const incidentSummary = incidents.size > 0
-                    ? (Array.from(incidents.values())[0].status === 'Resolved' ? '1 resolved' : `${incidents.size} active`)
-                    : '—';
-                const statusPageLink = svc.statusPageUrl
-                    ? { url: escapeHtml(svc.statusPageUrl), title: `View ${escapeHtml(svc.name)}` }
-                    : { url: '#', title: '' };
+                const incidentSummary = summarizeIncidents(incidents);
+                // tableRowHtml escapes these, so pass raw values (escaping here double-escaped them).
+                const statusPageLink = getStatusPageLink(svc.id, svc, true);
                 tableRows.push(tableRowHtml({
                     name: svc.name,
                     instance: svc.id,
