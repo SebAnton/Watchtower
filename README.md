@@ -1,4 +1,6 @@
-# 🏰 Watchtower
+<p align="center"><img src="assets/brand/logo.png" alt="Watchtower" width="280"></p>
+
+# Watchtower
 
 Watchtower is a modern, interactive dashboard for monitoring the status of Salesforce Production Orgs, Sandboxes, and external services (Jira, Bitbucket, Azure DevOps). Built with a sleek, dark-mode glassmorphism UI, it pulls real-time data from status APIs to keep you informed about incidents, maintenance, and overall service health.
 
