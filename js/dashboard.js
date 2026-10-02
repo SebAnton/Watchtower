@@ -11,6 +11,16 @@
     const { els } = Watchtower.dom;
     const { getStatusInfo, getIncidentDetailLink, getStatusPageLink, filterAndDeduplicateIncidents, summarizeIncidents } = Watchtower.status;
     const { safeUrl } = Watchtower.validation;
+    const { filterDocuSignData } = Watchtower.api;
+
+    /** Cached result for an external service, narrowed to the user's product filter where the service has one. */
+    function getExternalResult(svc) {
+        const res = state.fetchCache[svc.id];
+        if (svc.type === 'docusign' && res && res.success && res.data) {
+            return { ...res, data: filterDocuSignData(res.data, svc.shownProducts) };
+        }
+        return res;
+    }
 
     function updateTimestamp(showSuccess = false) {
         const now = new Date();
@@ -72,7 +82,9 @@
             const incidentsToDisplay = Array.from(uniqueIncidents.values());
             const activeIncident = incidentsToDisplay[0];
             const isResolved = activeIncident.status === 'Resolved';
-            let previewSubject = activeIncident.externalId ? `Incident ID: ${escapeHtml(activeIncident.externalId)}` : 'Service Issues Detected';
+            let previewSubject = 'Service Issues Detected';
+            if (activeIncident.title) previewSubject = escapeHtml(activeIncident.title);
+            else if (activeIncident.externalId) previewSubject = `Incident ID: ${escapeHtml(activeIncident.externalId)}`;
             if (activeIncident.serviceKeys && activeIncident.serviceKeys.length > 0) {
                 previewSubject += ` (${escapeHtml(activeIncident.serviceKeys.join(', '))})`;
             }
@@ -215,6 +227,18 @@
             azureServicesHtml = `<div class="sub-services"><div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem;">Components</div>${pillNodes.join('')}</div>`;
         }
 
+        let docuSignProductsHtml = '';
+        if (isExternal && data.DocuSignProducts && data.DocuSignProducts.length > 0) {
+            const pillNodes = data.DocuSignProducts.map(p => {
+                let dotClass = 'service-dot';
+                if (p.status === 'INCIDENT') dotClass = 'service-dot down';
+                else if (p.status !== 'OK') dotClass = 'service-dot warn';
+                const tooltip = p.affectedSites.length > 0 ? p.affectedSites.join(', ') : 'All sites available';
+                return `<div class="service-pill" title="${escapeHtml(tooltip)}"><div class="${dotClass}"></div>${escapeHtml(p.name)}</div>`;
+            });
+            docuSignProductsHtml = `<div class="sub-services"><div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem;">Products</div>${pillNodes.join('')}</div>`;
+        }
+
         const locText = data.location ? `• ${escapeHtml(data.location)}` : '';
         const statusPageLink = getStatusPageLink(result.instance, provider, isExternal);
 
@@ -251,6 +275,7 @@
                 ${servicesHtml}
                 ${componentsHtml}
                 ${azureServicesHtml}
+                ${docuSignProductsHtml}
             </div>
         `;
         return card;
@@ -339,7 +364,7 @@
         if (state.trackedExternalConfig.length > 0) {
             tableRows.push(`<tr class="table-group-header"><td colspan="5"><i class="ph ph-globe"></i> External Services</td></tr>`);
             state.trackedExternalConfig.forEach(svc => {
-                const res = state.fetchCache[svc.id];
+                const res = getExternalResult(svc);
                 const statusInfo = res && res.success && res.data
                     ? getStatusInfo(res.data.status)
                     : { label: 'Error', class: 'status-unknown' };
@@ -443,7 +468,7 @@
             let hasIncident = false;
             let hasWarning = false;
             state.trackedExternalConfig.forEach(svc => {
-                const res = state.fetchCache[svc.id];
+                const res = getExternalResult(svc);
                 if (res && res.success && res.data) {
                     if (res.data.status === 'INCIDENT') hasIncident = true;
                     if (res.data.status === 'DEGRADATION') hasWarning = true;
@@ -463,7 +488,7 @@
             const extInnerGrid = document.createElement('div');
             extInnerGrid.className = 'dashboard-grid';
             state.trackedExternalConfig.forEach(svc => {
-                const sbResult = state.fetchCache[svc.id];
+                const sbResult = getExternalResult(svc);
                 if (sbResult) {
                     extInnerGrid.appendChild(buildStatusCard(sbResult, false, svc.name, svc.id, true, svc));
                 } else {

@@ -39,6 +39,7 @@
                     ).join('|');
                     sig += `:A${azParts}`;
                 }
+                if (d.DocuSignProducts) sig += `:D${d.DocuSignProducts.map(p => `${p.name}:${p.status}:${p.affectedSites.join(';')}`).join(',')}`;
             }
             parts.push(sig);
         });

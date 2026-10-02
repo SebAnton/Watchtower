@@ -95,6 +95,12 @@
             const validRegions = AZURE_REGIONS.map(r => r.id);
             svc.shownRegions = Array.isArray(s.shownRegions) ? s.shownRegions.filter(r => validRegions.includes(r)) : [];
         }
+        if (def.type === 'docusign') {
+            // Product names come from DocuSign's live feed, so only their shape can be checked here.
+            svc.shownProducts = Array.isArray(s.shownProducts)
+                ? [...new Set(s.shownProducts.filter(p => typeof p === 'string' && p.length > 0 && p.length <= MAX_NAME_LENGTH))]
+                : [];
+        }
         return svc;
     }
 
@@ -108,9 +114,17 @@
         });
     }
 
+    const EXTERNAL_PREFERENCE_KEYS = ['shownRegions', 'shownProducts'];
+
     /** The persisted form of external services: id plus user preferences only. */
     function serializeExternalConfig(list) {
-        return list.map(svc => (Array.isArray(svc.shownRegions) ? { id: svc.id, shownRegions: svc.shownRegions } : { id: svc.id }));
+        return list.map(svc => {
+            const entry = { id: svc.id };
+            EXTERNAL_PREFERENCE_KEYS.forEach(key => {
+                if (Array.isArray(svc[key])) entry[key] = svc[key];
+            });
+            return entry;
+        });
     }
 
     global.Watchtower.validation = {

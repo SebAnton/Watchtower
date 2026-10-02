@@ -2,15 +2,15 @@
 
 # Watchtower
 
-Watchtower is a modern, interactive dashboard for monitoring the status of Salesforce Production Orgs, Sandboxes, and external services (Jira, Bitbucket, Azure DevOps). Built with a sleek, dark-mode glassmorphism UI, it pulls real-time data from status APIs to keep you informed about incidents, maintenance, and overall service health.
+Watchtower is a modern, interactive dashboard for monitoring the status of Salesforce Production Orgs, Sandboxes, and external services (Jira, Bitbucket, Azure DevOps, DocuSign). Built with a sleek, dark-mode glassmorphism UI, it pulls real-time data from status APIs to keep you informed about incidents, maintenance, and overall service health.
 
 ## ✨ Features
 
 - **Real-Time Monitoring**: Tracks operational status, active incidents, and maintenance events for Salesforce instances and external services.
 - **Hierarchical Organization**: Group your instances logically! Add a Production Org and track its related Sandboxes under one umbrella.
-- **External Services**: Monitor Jira Software, Atlassian Bitbucket, and Azure DevOps status alongside your Salesforce orgs.
+- **External Services**: Monitor Jira Software, Atlassian Bitbucket, Azure DevOps, and DocuSign status alongside your Salesforce orgs.
 - **Custom Aliases**: Rename instances (e.g., from `NA211` to `Global Sales Hub`) for easier identification.
-- **Sub-Service Filtering**: Drill down into specific services (e.g., Analytics, B2B Commerce) and filter the view per organization. Azure DevOps supports region filtering.
+- **Sub-Service Filtering**: Drill down into specific services (e.g., Analytics, B2B Commerce) and filter the view per organization. Azure DevOps supports region filtering, and DocuSign supports product filtering (e.g., only eSignature and CLM).
 - **Detailed Incident Timelines**: View timelines and updates for any active or recently resolved service disruptions.
 - **Configuration Portability**: Export your configured orgs, sandboxes, external services, and app settings to a JSON file and import them anywhere.
 - **Customizable App Title**: Set a custom dashboard title (e.g., your team or project name).
@@ -44,7 +44,7 @@ You just need a static local server to avoid CORS/file protocol restrictions in 
 3. (Optional) Provide an alias for the instance.
 4. Click **Add**.
 5. You can then add specific Sandboxes (e.g., `CS71`) nested under your newly created Production Org.
-6. Under **External Services**, select Jira, Bitbucket, or Azure DevOps and click **Add** to track their status.
+6. Under **External Services**, select Jira, Bitbucket, Azure DevOps, or DocuSign and click **Add** to track their status.
 
 ## 📁 Repository Structure
 
@@ -85,3 +85,4 @@ Data is fetched from publicly available status APIs:
 | Jira Software | `https://jira-software.status.atlassian.com/api/v2/summary.json` |
 | Atlassian Bitbucket | `https://bitbucket.status.atlassian.com/api/v2/summary.json` |
 | Azure DevOps | `https://status.dev.azure.com/_apis/status/health?api-version=6.0-preview.1` |
+| DocuSign | `https://health.docusign.com/production/1ds/ssg/apps/health/dynamic/components.json` and `.../incidents.json` |
