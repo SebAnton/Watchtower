@@ -137,4 +137,4 @@
         normalizeExternalConfig,
         serializeExternalConfig
     };
-})(typeof window !== 'undefined' ? window : this);
+})(globalThis);

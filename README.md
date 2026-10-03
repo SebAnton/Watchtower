@@ -65,6 +65,8 @@ You just need a static local server to avoid CORS/file protocol restrictions in 
   - `events.js` — Event listeners and handlers
   - `app.js` — Main orchestration and data fetching
 - `styles.css`: The complete design system and glassmorphism UI components.
+- `lib/shared.js`: Node entry point for the DOM-free modules (validation, status, API normalizers), for server-side use.
+- `vercel.json`: Security headers and Content Security Policy.
 - `tests/`: Unit tests for the DOM-free modules.
 
 ## 🧪 Running Tests
@@ -86,3 +88,10 @@ Data is fetched from publicly available status APIs:
 | Atlassian Bitbucket | `https://bitbucket.status.atlassian.com/api/v2/summary.json` |
 | Azure DevOps | `https://status.dev.azure.com/_apis/status/health?api-version=6.0-preview.1` |
 | DocuSign | `https://health.docusign.com/production/1ds/ssg/apps/health/dynamic/components.json` and `.../incidents.json` |
+
+## 🔒 Security
+
+- `vercel.json` sends a strict Content Security Policy (no inline scripts, no third-party scripts), plus HSTS, `X-Frame-Options: DENY`, `nosniff`, a strict referrer policy and a restrictive permissions policy.
+- **Adding a new status source?** Add its origin to `connect-src` in `vercel.json`. A test (`tests/shared-node.test.js`) fails if any service in `constants.js` is missing.
+- Don't use inline event handlers (`onclick="…"`) or inline `<script>` blocks; they are blocked by the CSP and a test checks for them. Attach listeners with `addEventListener`.
+- All stored or imported configuration passes through `js/validation.js` before use.

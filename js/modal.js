@@ -29,4 +29,4 @@
 
     global.Watchtower = global.Watchtower || {};
     global.Watchtower.modal = { showConfirmModal };
-})(typeof window !== 'undefined' ? window : this);
+})(globalThis);

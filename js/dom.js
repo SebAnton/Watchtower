@@ -35,4 +35,4 @@
 
     global.Watchtower = global.Watchtower || {};
     global.Watchtower.dom = { els };
-})(typeof window !== 'undefined' ? window : this);
+})(globalThis);

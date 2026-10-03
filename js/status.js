@@ -141,4 +141,4 @@
         filterAndDeduplicateIncidents,
         summarizeIncidents
     };
-})(typeof window !== 'undefined' ? window : this);
+})(globalThis);
